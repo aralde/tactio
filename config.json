@@ -1,0 +1,24 @@
+{
+    "actions": [
+        {
+            "label": "Summarize",
+            "icon": "📝",
+            "prompt": "Summarize the following text concisely (dont any additional info or formatting):"
+        },
+        {
+            "label": "Translate to Spanish",
+            "icon": "🇪🇸",
+            "prompt": "Translate the following text to Spanish (dont any additional info or formatting):"
+        },
+        {
+            "label": "Translate to English",
+            "icon": "🇬🇧",
+            "prompt": "Translate the following text to English (dont any additional info or formatting):"
+        },
+        {
+            "label": "Fix Grammar",
+            "icon": "✨",
+            "prompt": "Fix the grammar and spelling of the following text (dont any additional info or formatting):"
+        }
+    ]
+}
