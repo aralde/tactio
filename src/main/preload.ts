@@ -13,5 +13,10 @@ contextBridge.exposeInMainWorld('api', {
     uiReady: () => ipcRenderer.send('ui-ready'),
 
     // Paste the result
-    pasteResult: (text: string) => ipcRenderer.invoke('paste-result', text)
+    pasteResult: (text: string) => ipcRenderer.invoke('paste-result', text),
+
+    // Configuration
+    getSettings: () => ipcRenderer.invoke('get-settings'),
+    saveSettings: (settings: any) => ipcRenderer.invoke('save-settings', settings),
+    getModels: (service: string, apiKey: string) => ipcRenderer.invoke('get-models', service, apiKey)
 });

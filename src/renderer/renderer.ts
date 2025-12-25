@@ -4,6 +4,9 @@ interface WindowAPI {
     onConfigUpdate: (callback: (config: any) => void) => void;
     uiReady: () => void;
     pasteResult: (text: string) => Promise<void>;
+    getSettings: () => Promise<any>;
+    saveSettings: (settings: any) => Promise<boolean>;
+    getModels: (service: string, apiKey: string) => Promise<any[]>;
 }
 
 interface Window {
@@ -14,6 +17,15 @@ const actionsList = document.getElementById('actions-list') as HTMLDivElement;
 const statusBar = document.getElementById('status-bar') as HTMLDivElement;
 const resultContainer = document.getElementById('result-container') as HTMLDivElement;
 const historyList = document.getElementById('history-list') as HTMLDivElement;
+const settingsIcon = document.getElementById('settings-icon') as HTMLDivElement;
+const settingsModal = document.getElementById('settings-modal') as HTMLDivElement;
+
+// Settings Form Handlers
+const serviceSelect = document.getElementById('service-select') as HTMLSelectElement;
+const apiKeyInput = document.getElementById('api-key-input') as HTMLInputElement;
+const modelSelect = document.getElementById('model-select') as HTMLSelectElement;
+const saveSettingsBtn = document.getElementById('save-settings-btn') as HTMLButtonElement;
+const cancelSettingsBtn = document.getElementById('cancel-settings-btn') as HTMLButtonElement;
 
 const clipboardHistory: string[] = [];
 const MAX_HISTORY = 3;
@@ -28,6 +40,85 @@ window.api.onConfigUpdate((data: any) => {
     // Initial State: Show actions AND show clipboard content in the result card
     showInitialState(clipboardText);
 });
+
+// --- Settings Logic ---
+
+settingsIcon.onclick = async () => {
+    const settings = await window.api.getSettings();
+    populateSettingsForm(settings);
+    settingsModal.classList.remove('hidden');
+};
+
+cancelSettingsBtn.onclick = () => {
+    settingsModal.classList.add('hidden');
+};
+
+saveSettingsBtn.onclick = async () => {
+    const newSettings = {
+        service: serviceSelect.value,
+        apiKey: apiKeyInput.value,
+        model: modelSelect.value
+    };
+    await window.api.saveSettings(newSettings);
+    settingsModal.classList.add('hidden');
+    // Optional: Show success toast
+};
+
+serviceSelect.onchange = async () => {
+    updateModelList();
+};
+
+apiKeyInput.onblur = async () => {
+    // Refresh models when API key changes (needed for OpenRouter)
+    if (serviceSelect.value === 'OPENROUTER') {
+        updateModelList();
+    }
+};
+
+async function populateSettingsForm(settings: any) {
+    serviceSelect.value = settings.service;
+    apiKeyInput.value = settings.apiKey;
+
+    // Initial fetch of models
+    await updateModelList(settings.model);
+}
+
+async function updateModelList(selectedModelId: string | null = null) {
+    const service = serviceSelect.value;
+    const apiKey = apiKeyInput.value;
+
+    modelSelect.innerHTML = '<option>Loading...</option>';
+    modelSelect.disabled = true;
+
+    try {
+        const models = await window.api.getModels(service, apiKey);
+        modelSelect.innerHTML = '';
+
+        if (models.length === 0) {
+            const option = document.createElement('option');
+            option.text = "No models found (Check API Key)";
+            modelSelect.add(option);
+        } else {
+            models.forEach(m => {
+                const option = document.createElement('option');
+                option.value = m.id;
+                option.text = m.name || m.id;
+                modelSelect.add(option);
+            });
+        }
+    } catch (e) {
+        modelSelect.innerHTML = '<option>Error loading models</option>';
+    } finally {
+        modelSelect.disabled = false;
+        // Restore selection if exists in new list
+        if (selectedModelId) {
+            modelSelect.value = selectedModelId;
+        }
+    }
+}
+
+// --- End Settings Logic ---
+
 
 function showInitialState(text: string) {
     if (resultContainer && historyList) {

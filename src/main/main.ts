@@ -10,33 +10,49 @@ dotenv.config();
 // ... (existing code)
 
 
+import { Store } from './store';
+
+// ... (existing code)
+
 let mainWindow: BrowserWindow | null = null;
 let config: any = null;
 let genAI: GoogleGenerativeAI | null = null;
 let geminiModel: any = null;
 
-// Configuration variables
-let LLM_SERVICE: 'GEMINI' | 'OPENROUTER' = 'GEMINI';
-let MODEL_NAME: string = 'gemini-2.0-flash-lite-001';
+// Initialize Store
+const store = new Store({
+    configName: 'user-preferences',
+    defaults: {
+        service: 'GEMINI',
+        apiKey: '',
+        model: 'gemini-2.0-flash-lite-001'
+    }
+});
 
 function initializeLLM() {
-    LLM_SERVICE = (process.env.LLM_SERVICE as 'GEMINI' | 'OPENROUTER') || 'GEMINI';
-    MODEL_NAME = process.env.MODEL || 'gemini-2.0-flash-lite-001';
+    // Read from store, fall back to process.env for backward compatibility/dev
+    const service = store.get('service') || process.env.LLM_SERVICE || 'GEMINI';
+    const model = store.get('model') || process.env.MODEL || 'gemini-2.0-flash-lite-001';
+    let apiKey = store.get('apiKey');
 
-    console.log(`Initializing LLM Service: ${LLM_SERVICE}, Model: ${MODEL_NAME}`);
+    // If no API key in store, check env
+    if (!apiKey) {
+        if (service === 'GEMINI') apiKey = process.env.GEMINI_API_KEY;
+        else if (service === 'OPENROUTER') apiKey = process.env.OPENROUTER_API_KEY;
+    }
 
-    if (LLM_SERVICE === 'GEMINI') {
-        const apiKey = process.env.GEMINI_API_KEY;
+    console.log(`Initializing LLM Service: ${service}, Model: ${model}`);
+
+    if (service === 'GEMINI') {
         if (apiKey) {
             genAI = new GoogleGenerativeAI(apiKey);
-            geminiModel = genAI.getGenerativeModel({ model: MODEL_NAME });
+            geminiModel = genAI.getGenerativeModel({ model: model });
         } else {
-            console.error("GEMINI_API_KEY is missing in .env file");
+            console.error("GEMINI_API_KEY is missing via Settings or .env");
+            geminiModel = null;
         }
-    } else if (LLM_SERVICE === 'OPENROUTER') {
-        if (!process.env.OPENROUTER_API_KEY) {
-            console.error("OPENROUTER_API_KEY is missing in .env file");
-        }
+    } else if (service === 'OPENROUTER') {
+        // OpenRouter doesn't need SDK init here, handled in execute
     }
 }
 
@@ -50,6 +66,7 @@ function loadConfig() {
         config = { actions: [] };
     }
 }
+
 
 function createWindow() {
     mainWindow = new BrowserWindow({
@@ -68,6 +85,9 @@ function createWindow() {
 
     // Hide instead of close on blur to keep it ready
     mainWindow.on('blur', () => {
+        // Only hide if NOT interacting with a modal/dev tools (heuristic?)
+        // For now keep standard behavior, but settings modal inside might need staying open?
+        // Since it's inside the window, focusing inputs keeps window focused.
         mainWindow?.hide();
     });
 }
@@ -85,15 +105,29 @@ function showWindowAtCursor(clipboardText: string = '') {
     mainWindow.webContents.send('config-update', { config, clipboardText });
 }
 
+
 async function executeLLM(prompt: string, text: string): Promise<string> {
     const fullPrompt = `${prompt}\n\n"${text}"`;
+    const service = store.get('service') || process.env.LLM_SERVICE || 'GEMINI';
+    const modelName = store.get('model') || process.env.MODEL || 'gemini-2.0-flash-lite-001';
+    let apiKey = store.get('apiKey');
 
-    if (LLM_SERVICE === 'GEMINI') {
+    // Env fallback
+    if (!apiKey) {
+        if (service === 'GEMINI') apiKey = process.env.GEMINI_API_KEY;
+        else if (service === 'OPENROUTER') apiKey = process.env.OPENROUTER_API_KEY;
+    }
+
+    if (service === 'GEMINI') {
         if (!geminiModel) {
+            // Try re-init if key was lately added?
             initializeLLM();
-            if (!geminiModel) throw new Error("Gemini API not initialized. Check GEMINI_API_KEY.");
+            if (!geminiModel) throw new Error("Gemini API not initialized. Please configure API Key.");
         }
         try {
+            // Re-fetch model instructions if needed? Standard genAI logic:
+            // Ensure we use the current model from store if changed w/o re-init?
+            // initializeLLM sets geminiModel. 
             const result = await geminiModel.generateContent(fullPrompt);
             const response = await result.response;
             return response.text();
@@ -101,9 +135,8 @@ async function executeLLM(prompt: string, text: string): Promise<string> {
             console.error("Gemini API Error:", error);
             throw new Error(`Gemini API Failed: ${error.message || 'Unknown error'}`);
         }
-    } else if (LLM_SERVICE === 'OPENROUTER') {
-        const apiKey = process.env.OPENROUTER_API_KEY;
-        if (!apiKey) throw new Error("OpenRouter API Key missing.");
+    } else if (service === 'OPENROUTER') {
+        if (!apiKey) throw new Error("OpenRouter API Key missing. Please configure settings.");
 
         try {
             const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -111,11 +144,11 @@ async function executeLLM(prompt: string, text: string): Promise<string> {
                 headers: {
                     "Authorization": `Bearer ${apiKey}`,
                     "Content-Type": "application/json",
-                    "HTTP-Referer": "http://localhost:3000", // Required by OpenRouter, using dummy for local app
+                    "HTTP-Referer": "http://localhost:3000",
                     "X-Title": "AIToys"
                 },
                 body: JSON.stringify({
-                    "model": MODEL_NAME,
+                    "model": modelName,
                     "messages": [
                         { "role": "user", "content": fullPrompt }
                     ]
@@ -135,16 +168,16 @@ async function executeLLM(prompt: string, text: string): Promise<string> {
             throw new Error(`OpenRouter Failed: ${error.message || 'Unknown error'}`);
         }
     } else {
-        throw new Error(`Unknown LLM Service: ${LLM_SERVICE}`);
+        throw new Error(`Unknown LLM Service: ${service}`);
     }
 }
 
 app.whenReady().then(() => {
+    store.init();
     loadConfig();
     initializeLLM();
     createWindow();
 
-    // Register Global Hotkey
     // Register copy-paste handler
     const handleGlobalShortcut = async () => {
         // 0. Release modifiers to prevent interference (e.g., Ctrl+Shift+C in Word)
@@ -224,10 +257,72 @@ app.on('window-all-closed', () => {
     }
 });
 
+
 // IPC Handlers
 ipcMain.on('ui-ready', (event) => {
     console.log('Renderer UI ready, sending config');
     event.sender.send('config-update', config);
+});
+
+ipcMain.handle('get-settings', () => {
+    return {
+        service: store.get('service') || 'GEMINI',
+        apiKey: store.get('apiKey') || '',
+        model: store.get('model') || 'gemini-2.0-flash-lite-001'
+    };
+});
+
+ipcMain.handle('save-settings', (event, newSettings) => {
+    store.set('service', newSettings.service);
+    store.set('apiKey', newSettings.apiKey);
+    store.set('model', newSettings.model);
+    initializeLLM(); // Re-initialize with new settings
+    return true;
+});
+
+ipcMain.handle('get-models', async (event, service, apiKey) => {
+    if (service === 'OPENROUTER') {
+        if (!apiKey) return [];
+        try {
+            const response = await fetch("https://openrouter.ai/api/v1/models");
+            const data = await response.json();
+            return data.data.map((m: any) => ({
+                id: m.id,
+                name: m.name,
+                context_length: m.context_length
+            })).sort((a: any, b: any) => a.id.localeCompare(b.id)); // Sort A-Z
+        } catch (e) {
+            console.error("Failed to fetch OpenRouter models:", e);
+            return [];
+        }
+    } else if (service === 'GEMINI') {
+        // Basic list for now, or fetch if apiKey present
+        // Gemini API list_models requires auth? Yes.
+        if (apiKey) {
+            try {
+                const tempGenUI = new GoogleGenerativeAI(apiKey);
+                // Note: listModels is on the GoogleGenerativeAI instance? 
+                // Actually no, it's a gap in the simple node client often?
+                // Checking documentation... Node SDK has it on the manager usually, 
+                // but let's stick to a curated list for fallback or try to find it.
+                // The current SDK usage: 
+                // const genAI = new GoogleGenerativeAI(API_KEY);
+                // const model = genAI.getGenerativeModel({ model: "MODEL_NAME" });
+                // It doesn't seem to expose a direct 'listModels' in the top level easily in v0.24?
+                // Actually it might be via `getGenerativeModel` not having a list. 
+                // Let's provide a hardcoded list of verified Gemini models for now to avoid complexity 
+                // unless I verify `genAI` object has a list method.
+            } catch (e) { }
+        }
+
+        return [
+            { id: 'gemini-2.0-flash-lite-001', name: 'Gemini 2.0 Flash Lite' },
+            { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash' },
+            { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro' },
+            { id: 'gemini-1.0-pro', name: 'Gemini 1.0 Pro' }
+        ];
+    }
+    return [];
 });
 
 ipcMain.handle('trigger-action', async (event, actionLabel, prompt) => {

@@ -7,6 +7,9 @@
 </head>
 <body>
     <div id="container">
+        <!-- Settings Icon -->
+        <div id="settings-icon" title="Settings">⚙️</div>
+
         <div id="actions-section">
 
             <div class="section-header">Actions</div>
@@ -20,6 +23,33 @@
             </div>
         </div>
     </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="hidden">
+        <div class="modal-content">
+            <h3>Settings</h3>
+            
+            <label for="service-select">Service:</label>
+            <select id="service-select">
+                <option value="GEMINI">Google Gemini</option>
+                <option value="OPENROUTER">OpenRouter</option>
+            </select>
+
+            <label for="api-key-input">API Key:</label>
+            <input type="password" id="api-key-input" placeholder="Enter API Key">
+
+            <label for="model-select">Model:</label>
+            <select id="model-select">
+                <option value="" disabled selected>Select a Model</option>
+            </select>
+
+            <div class="modal-actions">
+                <button id="save-settings-btn">Save</button>
+                <button id="cancel-settings-btn">Cancel</button>
+            </div>
+        </div>
+    </div>
+
     <script src="../../dist/renderer/renderer.js"></script>
 </body>
 </html>
