@@ -7,6 +7,7 @@ interface WindowAPI {
     getSettings: () => Promise<any>;
     saveSettings: (settings: any) => Promise<boolean>;
     getModels: (service: string, apiKey: string) => Promise<any[]>;
+    togglePin: () => Promise<boolean>;
 }
 
 interface Window {
@@ -18,6 +19,7 @@ const statusBar = document.getElementById('status-bar') as HTMLDivElement;
 const resultContainer = document.getElementById('result-container') as HTMLDivElement;
 const historyList = document.getElementById('history-list') as HTMLDivElement;
 const settingsIcon = document.getElementById('settings-icon') as HTMLDivElement;
+const pinIcon = document.getElementById('pin-icon') as HTMLDivElement;
 const settingsModal = document.getElementById('settings-modal') as HTMLDivElement;
 
 // Settings Form Handlers
@@ -40,6 +42,20 @@ window.api.onConfigUpdate((data: any) => {
     // Initial State: Show actions AND show clipboard content in the result card
     showInitialState(clipboardText);
 });
+
+// --- Pin Logic ---
+if (pinIcon) {
+    pinIcon.onclick = async () => {
+        const isPinned = await window.api.togglePin();
+        if (isPinned) {
+            pinIcon.classList.add('pinned');
+            pinIcon.title = "Unpin (Always on Top)";
+        } else {
+            pinIcon.classList.remove('pinned');
+            pinIcon.title = "Pin (Always on Top)";
+        }
+    };
+}
 
 // --- Settings Logic ---
 

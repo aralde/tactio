@@ -84,11 +84,12 @@ function createWindow() {
     mainWindow.loadFile(path.join(__dirname, '../../src/renderer/index.html'));
 
     // Hide instead of close on blur to keep it ready
+    // Hide instead of close on blur to keep it ready
     mainWindow.on('blur', () => {
-        // Only hide if NOT interacting with a modal/dev tools (heuristic?)
-        // For now keep standard behavior, but settings modal inside might need staying open?
-        // Since it's inside the window, focusing inputs keeps window focused.
-        mainWindow?.hide();
+        // Only hide if NOT pinned (always on top)
+        if (!mainWindow?.isAlwaysOnTop()) {
+            mainWindow?.hide();
+        }
     });
 }
 
@@ -380,4 +381,13 @@ ipcMain.handle('paste-result', async (event, text) => {
     } catch (error) {
         console.error("Error in paste-result:", error);
     }
+});
+
+ipcMain.handle('toggle-pin', (event) => {
+    if (mainWindow) {
+        const isAlwaysOnTop = mainWindow.isAlwaysOnTop();
+        mainWindow.setAlwaysOnTop(!isAlwaysOnTop);
+        return !isAlwaysOnTop; // Return new state
+    }
+    return false;
 });

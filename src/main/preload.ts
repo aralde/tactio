@@ -18,5 +18,8 @@ contextBridge.exposeInMainWorld('api', {
     // Configuration
     getSettings: () => ipcRenderer.invoke('get-settings'),
     saveSettings: (settings: any) => ipcRenderer.invoke('save-settings', settings),
-    getModels: (service: string, apiKey: string) => ipcRenderer.invoke('get-models', service, apiKey)
+    getModels: (service: string, apiKey: string) => ipcRenderer.invoke('get-models', service, apiKey),
+
+    // Window Controls
+    togglePin: () => ipcRenderer.invoke('toggle-pin')
 });
