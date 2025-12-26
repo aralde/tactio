@@ -2,6 +2,7 @@ import robot from 'robotjs';
 
 export function simulatePaste() {
     console.log('Simulating paste...');
+    robot.setKeyboardDelay(40); // Slower delay for reliability
     // Check OS for modifier key (Control on Windows/Linux, Command on Mac)
     const modifier = process.platform === 'darwin' ? 'command' : 'control';
 
@@ -17,6 +18,7 @@ export function simulatePaste() {
 
 export function simulateCopy() {
     console.log('Simulating copy...');
+    robot.setKeyboardDelay(40); // Slower delay for reliability
     const modifier = process.platform === 'darwin' ? 'command' : 'control';
     try {
         robot.keyTap('c', [modifier]);

@@ -8,6 +8,7 @@ interface WindowAPI {
     saveSettings: (settings: any) => Promise<boolean>;
     getModels: (service: string, apiKey: string) => Promise<any[]>;
     togglePin: () => Promise<boolean>;
+    closeWindow: () => void;
 }
 
 interface Window {
@@ -20,6 +21,7 @@ const resultContainer = document.getElementById('result-container') as HTMLDivEl
 const historyList = document.getElementById('history-list') as HTMLDivElement;
 const settingsIcon = document.getElementById('settings-icon') as HTMLDivElement;
 const pinIcon = document.getElementById('pin-icon') as HTMLDivElement;
+const closeBtn = document.getElementById('close-btn') as HTMLDivElement;
 const settingsModal = document.getElementById('settings-modal') as HTMLDivElement;
 
 // Settings Form Handlers
@@ -54,6 +56,12 @@ if (pinIcon) {
             pinIcon.classList.remove('pinned');
             pinIcon.title = "Pin (Always on Top)";
         }
+    };
+}
+
+if (closeBtn) {
+    closeBtn.onclick = () => {
+        window.api.closeWindow();
     };
 }
 

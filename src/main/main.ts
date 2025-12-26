@@ -96,9 +96,15 @@ function createWindow() {
 function showWindowAtCursor(clipboardText: string = '') {
     if (!mainWindow) return;
 
-    const point = screen.getCursorScreenPoint();
-    // Adjust position slightly so it doesn't open exactly under the cursor which might be annoying
-    mainWindow.setPosition(point.x + 10, point.y + 10);
+    // Only move if NOT pinned (always on top)
+    if (!mainWindow.isAlwaysOnTop()) {
+        const point = screen.getCursorScreenPoint();
+        // Adjust position slightly so it doesn't open exactly under the cursor which might be annoying
+        mainWindow.setPosition(point.x + 10, point.y + 10);
+    } else {
+        console.log('Window is pinned, skipping reposition to cursor.');
+    }
+
     mainWindow.show();
     mainWindow.focus();
 
@@ -183,7 +189,7 @@ app.whenReady().then(() => {
     const handleGlobalShortcut = async () => {
         // 0. Release modifiers to prevent interference (e.g., Ctrl+Shift+C in Word)
         releaseModifiers();
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 300)); // Increased to 300ms
 
         // 1. Clear clipboard to detect new copy
         clipboard.writeText('');
@@ -198,15 +204,15 @@ app.whenReady().then(() => {
         // 3. Poll for clipboard change (max 1.5s)
         let text = '';
         const startTime = Date.now();
-        const timeout = 1500; // 1.5 seconds max wait
+        const timeout = 2000; // Increased timeout to 2.0s
 
         while (Date.now() - startTime < timeout) {
             text = clipboard.readText();
             if (text && text.length > 0) {
                 break;
             }
-            // Wait 50ms before next check
-            await new Promise(resolve => setTimeout(resolve, 50));
+            // Wait 100ms before next check (less thrashing)
+            await new Promise(resolve => setTimeout(resolve, 100));
         }
 
         if (text) {
@@ -390,4 +396,8 @@ ipcMain.handle('toggle-pin', (event) => {
         return !isAlwaysOnTop; // Return new state
     }
     return false;
+});
+
+ipcMain.on('close-window', () => {
+    mainWindow?.hide();
 });

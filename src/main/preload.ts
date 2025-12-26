@@ -21,5 +21,6 @@ contextBridge.exposeInMainWorld('api', {
     getModels: (service: string, apiKey: string) => ipcRenderer.invoke('get-models', service, apiKey),
 
     // Window Controls
-    togglePin: () => ipcRenderer.invoke('toggle-pin')
+    togglePin: () => ipcRenderer.invoke('toggle-pin'),
+    closeWindow: () => ipcRenderer.send('close-window')
 });

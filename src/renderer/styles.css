@@ -10,7 +10,10 @@ body {
     color: #e0e0e0;
     overflow: hidden;
     user-select: none;
-    -webkit-app-region: drag; /* Enable dragging */
+    -webkit-app-region: no-drag; /* Disable global drag, enabled on header */
+    border: 1px solid #454545;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.5);
 }
 
 /* Global loading state */
@@ -32,14 +35,73 @@ body.loading * {
     border-radius: 4px;
 }
 
-/* Main container padding to prevent edge touching */
+#header-bar {
+    height: 24px; /* Even smaller */
+    background: #1e1e1e; /* Match body background */
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 8px; /* Tighter padding */
+    -webkit-app-region: drag;
+    /* border-bottom removed for seamless look */
+    flex-shrink: 0;
+    position: relative;
+}
+
+#app-icon {
+    font-size: 10px; /* Tiny icon */
+    margin-right: 8px;
+    display: flex;
+    align-items: center;
+}
+
+/* Remove unused container style if present, or just style the handle */
+#drag-handle {
+    width: 24px; /* Shorter width */
+    height: 2px; /* Thinner */
+    background: #555;
+    border-radius: 1px;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+#window-controls {
+    display: flex;
+    gap: 8px; /* Tighter gap */
+    -webkit-app-region: no-drag;
+    align-items: center;
+}
+
+.control-icon {
+    cursor: pointer;
+    font-size: 10px; /* Tiny icons */
+    color: #888;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px; 
+    height: 14px;
+}
+
+.control-icon:hover {
+    color: #fff;
+}
+
+#close-btn:hover {
+    color: #ff6b6b;
+}
+
+/* Main container padding */
 #container {
     padding: 12px;
     display: flex;
     flex-direction: column;
     gap: 12px;
-    height: 100%;
+    height: calc(100% - 24px); /* Updated for new header height */
     box-sizing: border-box;
+    overflow-y: auto;
 }
 
 #actions-list {
@@ -211,38 +273,11 @@ body.loading * {
     font-size: 12px;
 }
 
-/* Settings Icon */
-#settings-icon {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    cursor: pointer;
-    font-size: 16px;
-    opacity: 0.5;
-    transition: opacity 0.2s;
-    z-index: 1000;
-}
-
-#settings-icon:hover {
+/* Icons now in header, styling is handled by .control-icon mostly */
+#pin-icon.pinned {
+    color: #0078d4;
+    transform: rotate(-45deg); /* Visual cue */
     opacity: 1;
-}
-
-/* Pin Icon */
-#pin-icon {
-    position: absolute;
-    top: 10px;
-    right: 40px; /* Left of settings icon */
-    cursor: pointer;
-    font-size: 16px;
-    opacity: 0.3;
-    transition: all 0.2s;
-    z-index: 1000;
-    filter: grayscale(100%);
-}
-
-#pin-icon:hover {
-    opacity: 0.7;
-    filter: grayscale(0%);
 }
 
 #pin-icon.pinned {
