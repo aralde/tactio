@@ -1,7 +1,7 @@
 {
-  "name": "ai-toys",
+  "name": "tactio",
   "version": "1.0.0",
-  "description": "A productivity tool inspired by PowerToys using Google Gemini",
+  "description": "A productivity tool using LLMs for Copy. Transform. Paste.",
   "main": "dist/main/main.js",
   "scripts": {
     "start": "tsc && electron .",
