@@ -7,48 +7,45 @@ export class Store {
     private data: Record<string, any>;
 
     constructor(private opts: { configName: string; defaults: Record<string, any> }) {
-        this.data = opts.defaults; // Initial data, will load real data on init
+        this.data = opts.defaults;
     }
 
     init() {
-        const userDataPath = app.getPath('userData');
-        this.path = path.join(userDataPath, this.opts.configName + '.json');
+        const isDev = !app.isPackaged;
+        // In production/portable, look next to the executable. In dev, look in root.
+        // We check PORTABLE_EXECUTABLE_DIR first, which is set by electron-builder for portable apps.
+        const basePath = isDev
+            ? process.cwd()
+            : (process.env.PORTABLE_EXECUTABLE_DIR || path.dirname(app.getPath('exe')));
+
+        // We force the name to config.json for the portable goal
+        this.path = path.join(basePath, 'config.json');
+
+        // Load existing or initialize
         this.data = parseDataFile(this.path, this.opts.defaults);
     }
 
     get(key: string): any {
         let value = this.data[key];
-
-        // Decrypt if it's the apiKey and looks likely encrypted (we assume base64 if it's encrypted logic)
-        // Simplest check: just try to decrypt if encryption is available
-        if (key === 'apiKey' && typeof value === 'string' && safeStorage.isEncryptionAvailable()) {
-            try {
-                const buffer = Buffer.from(value, 'base64');
-                // Check if buffer is valid? safeStorage throws if text is not valid encrypted buffer
-                value = safeStorage.decryptString(buffer);
-            } catch (e) {
-                // If fails, assume it was plain text or invalid
-            }
-        }
+        // We are disabling decryption logic to keep the file simple and portable-editable 
+        // as requested ("config.json ... external configuration").
+        // If we want to support encrypted keys in the future, we can add a flag, 
+        // but for now, we return raw value (user puts plain text key).
         return value;
     }
 
     set(key: string, val: any): void {
-        let valueToStore = val;
-
-        if (key === 'apiKey' && typeof val === 'string' && safeStorage.isEncryptionAvailable()) {
-            try {
-                const buffer = safeStorage.encryptString(val);
-                valueToStore = buffer.toString('base64');
-            } catch (e) {
-                console.error("Encryption failed", e);
-            }
+        // Direct assignment, no encryption, to maintain the file as simple JSON
+        this.data[key] = val;
+        try {
+            fs.writeFileSync(this.path, JSON.stringify(this.data, null, 4)); // Pretty print for user editing
+        } catch (e) {
+            console.error("Failed to write config file", e);
         }
+    }
 
-        this.data[key] = valueToStore;
-        if (this.path) {
-            fs.writeFileSync(this.path, JSON.stringify(this.data));
-        }
+    getAll(): Record<string, any> {
+        return this.data;
     }
 }
 

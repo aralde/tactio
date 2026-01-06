@@ -1,4 +1,4 @@
-import { app, BrowserWindow, globalShortcut, clipboard, ipcMain, screen } from 'electron';
+import { app, BrowserWindow, globalShortcut, clipboard, ipcMain, screen, Tray, Menu, nativeImage } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 import { simulatePaste, simulateCopy, releaseModifiers } from './automation';
@@ -15,17 +15,51 @@ import { Store } from './store';
 // ... (existing code)
 
 let mainWindow: BrowserWindow | null = null;
-let config: any = null;
+let tray: Tray | null = null;
 let genAI: GoogleGenerativeAI | null = null;
 let geminiModel: any = null;
 
+function createTray() {
+    const iconPath = path.join(__dirname, '../../assets/tactio-logo.svg'); // Updated to use tactio-logo.svg
+    const icon = nativeImage.createFromPath(iconPath);
+    tray = new Tray(icon);
+
+    const contextMenu = Menu.buildFromTemplate([
+        {
+            label: 'Show/Hide',
+            click: () => {
+                if (mainWindow?.isVisible()) {
+                    mainWindow.hide();
+                } else {
+                    showWindowAtCursor();
+                }
+            }
+        },
+        { type: 'separator' },
+        {
+            label: 'Quit',
+            click: () => {
+                app.quit();
+            }
+        }
+    ]);
+
+    tray.setToolTip('Tactio');
+    tray.setContextMenu(contextMenu);
+
+    tray.on('double-click', () => {
+        showWindowAtCursor();
+    });
+}
+
 // Initialize Store
 const store = new Store({
-    configName: 'user-preferences',
+    configName: 'user-preferences', // This name is now overridden in store.ts to be config.json
     defaults: {
         service: 'GEMINI',
         apiKey: '',
-        model: 'gemini-2.0-flash-lite-001'
+        model: 'gemini-2.0-flash-lite-001',
+        actions: []
     }
 });
 
@@ -56,18 +90,6 @@ function initializeLLM() {
     }
 }
 
-function loadConfig() {
-    try {
-        const configPath = path.join(process.cwd(), 'config.json');
-        const data = fs.readFileSync(configPath, 'utf-8');
-        config = JSON.parse(data);
-    } catch (err) {
-        console.error('Failed to load config:', err);
-        config = { actions: [] };
-    }
-}
-
-
 function createWindow() {
     mainWindow = new BrowserWindow({
         width: 300,
@@ -79,6 +101,7 @@ function createWindow() {
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
         },
+        icon: path.join(__dirname, '../../assets/tactio-logo.svg')
     });
 
     mainWindow.loadFile(path.join(__dirname, '../../src/renderer/index.html'));
@@ -109,7 +132,7 @@ function showWindowAtCursor(clipboardText: string = '') {
     mainWindow.focus();
 
     // Send config and clipboard text to renderer
-    mainWindow.webContents.send('config-update', { config, clipboardText });
+    mainWindow.webContents.send('config-update', { config: store.getAll(), clipboardText });
 }
 
 
@@ -181,9 +204,10 @@ async function executeLLM(prompt: string, text: string): Promise<string> {
 
 app.whenReady().then(() => {
     store.init();
-    loadConfig();
+    // loadConfig(); // Removed: Config unified in Store
     initializeLLM();
     createWindow();
+    createTray();
 
     // Register copy-paste handler
     const handleGlobalShortcut = async () => {
@@ -268,7 +292,7 @@ app.on('window-all-closed', () => {
 // IPC Handlers
 ipcMain.on('ui-ready', (event) => {
     console.log('Renderer UI ready, sending config');
-    event.sender.send('config-update', config);
+    event.sender.send('config-update', store.getAll());
 });
 
 ipcMain.handle('get-settings', () => {

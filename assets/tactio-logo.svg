@@ -1,0 +1,31 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none"
+     xmlns="http://www.w3.org/2000/svg">
+
+  <!-- Hexagon -->
+  <path
+    d="M128 16
+       L216 64
+       L216 192
+       L128 240
+       L40 192
+       L40 64
+       Z"
+    stroke="#2563EB"
+    stroke-width="14"
+    fill="none"
+    stroke-linejoin="round"/>
+
+  <!-- Central node -->
+  <circle cx="128" cy="128" r="14" fill="#2563EB"/>
+
+  <!-- Connections -->
+  <line x1="128" y1="128" x2="128" y2="72" stroke="#2563EB" stroke-width="8" stroke-linecap="round"/>
+  <line x1="128" y1="128" x2="176" y2="156" stroke="#2563EB" stroke-width="8" stroke-linecap="round"/>
+  <line x1="128" y1="128" x2="80" y2="156" stroke="#2563EB" stroke-width="8" stroke-linecap="round"/>
+
+  <!-- Outer nodes -->
+  <circle cx="128" cy="72" r="8" fill="#2563EB"/>
+  <circle cx="176" cy="156" r="8" fill="#2563EB"/>
+  <circle cx="80" cy="156" r="8" fill="#2563EB"/>
+
+</svg>

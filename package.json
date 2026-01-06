@@ -6,14 +6,36 @@
   "scripts": {
     "start": "tsc && electron .",
     "build": "tsc",
+    "build:portable": "tsc && electron-builder --win portable",
     "rebuild": "electron-rebuild -f -w robotjs"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "build": {
+    "npmRebuild": false,
+    "appId": "com.arieldeibe.tactio",
+    "productName": "Tactio",
+    "icon": "assets/tactio-logo.svg",
+    "win": {
+      "target": "portable",
+      "artifactName": "${productName}Portable_${version}.${ext}",
+      "icon": "assets/tactio-logo.svg"
+    },
+    "directories": {
+      "output": "dist-build"
+    },
+    "files": [
+      "dist/**/*",
+      "src/renderer/**/*",
+      "package.json",
+      "assets/**/*"
+    ]
+  },
   "devDependencies": {
     "@types/node": "^18.0.0",
     "electron": "^28.0.0",
+    "electron-builder": "^24.6.4",
     "electron-rebuild": "^3.2.9",
     "typescript": "^5.0.0"
   },

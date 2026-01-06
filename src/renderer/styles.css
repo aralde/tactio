@@ -49,10 +49,17 @@ body.loading * {
 }
 
 #app-icon {
-    font-size: 10px; /* Tiny icon */
+    /* font-size: 10px; Removed for image */
     margin-right: 8px;
     display: flex;
     align-items: center;
+    height: 100%; /* Ensure it fits in header */
+}
+
+#app-icon img {
+    height: 16px; /* Fit within 24px header */
+    width: auto;
+    object-fit: contain;
 }
 
 /* Remove unused container style if present, or just style the handle */
