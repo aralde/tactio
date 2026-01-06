@@ -3,3 +3,5 @@ node_modules
 dist
 .env
 dist-build
+secrets.json
+config.json

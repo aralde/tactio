@@ -294,7 +294,8 @@ body.loading * {
 }
 
 /* Modal Overlay */
-#settings-modal {
+#settings-modal,
+#prompt-manager-modal {
     position: fixed;
     top: 0;
     left: 0;
@@ -399,3 +400,236 @@ select,
 #history-list {
     -webkit-app-region: no-drag;
 }
+
+/* --- New Mode Controls styling --- */
+
+.actions-header-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.actions-header-container .section-header {
+    margin-bottom: 0; /* Remove bottom margin as container handles it */
+}
+
+#mode-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.toggle-switch {
+    display: flex;
+    background: #333;
+    border-radius: 4px;
+    padding: 2px;
+    gap: 2px;
+    cursor: pointer;
+    border: 1px solid #444;
+}
+
+.toggle-option {
+    padding: 1px 4px; /* Smaller padding */
+    border-radius: 3px;
+    font-size: 11px; /* Match closer to section header (10px) */
+    opacity: 0.5;
+    transition: all 0.2s;
+    filter: grayscale(100%);
+    line-height: 1; /* Tighten height */
+}
+
+.toggle-option.active {
+    background: #0078d4;
+    color: white;
+    opacity: 1;
+    filter: grayscale(0%);
+}
+
+.icon-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 12px; /* Smaller folder icon */
+    padding: 2px;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.icon-btn:hover {
+    opacity: 1;
+}
+
+/* Settings Input Group */
+.input-group {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 15px;
+}
+
+.input-group input {
+    margin-bottom: 0;
+    flex: 1;
+}
+
+.input-group button {
+    background: #333;
+    border: 1px solid #444;
+    color: #e0e0e0;
+    width: 30px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+/* Prompt Manager Styles */
+.manager-list {
+    max-height: 200px;
+    overflow-y: auto;
+    background: #1e1e1e;
+    border: 1px solid #333;
+    border-radius: 4px;
+    margin-bottom: 10px;
+}
+
+.manager-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px;
+    border-bottom: 1px solid #333;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.manager-item:last-child {
+    border-bottom: none;
+}
+
+.manager-item:hover {
+    background: #333;
+}
+
+.manager-item-icon {
+    width: 20px;
+    text-align: center;
+    margin-right: 8px;
+}
+
+.manager-item-label {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.manager-item-edit {
+    font-size: 10px;
+    color: #888;
+}
+
+textarea#prompt-text-input {
+    width: 100%;
+    height: 80px;
+    background: #1e1e1e;
+    color: white;
+    border: 1px solid #333;
+    border-radius: 4px;
+    resize: none;
+    margin-bottom: 10px;
+    padding: 8px;
+    font-family: 'Segoe UI', sans-serif;
+    font-size: 11px;
+    box-sizing: border-box;
+}
+
+textarea#prompt-text-input:focus {
+    outline: none;
+    border-color: #0078d4;
+}
+
+.danger-btn {
+    background: #a4262c !important; /* Red */
+    color: white;
+    margin-right: auto; /* Push to left */
+}
+
+.danger-btn:hover {
+    background: #d13438 !important;
+}
+
+#manager-add-btn {
+    background: #2b88d8;
+    color: white;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #444;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Emoji Picker */
+#emoji-palette {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(24px, 1fr)); /* Responsive grid */
+    gap: 4px;
+    background: #2b2b2b;
+    border: 1px solid #444;
+    border-radius: 4px;
+    padding: 8px;
+    margin-bottom: 10px;
+    max-height: 150px;
+    overflow-y: auto;
+    overflow-x: hidden; /* Prevent horizontal scroll */
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.emoji-option {
+    font-size: 16px;
+    padding: 4px;
+    cursor: pointer;
+    text-align: center;
+    border-radius: 4px;
+    user-select: none;
+}
+
+.emoji-option:hover {
+    background: #444;
+    transform: scale(1.2);
+}
+
+/* Resize Handle Overlay */
+#resize-handle {
+    position: fixed;
+    bottom: 4px;
+    right: 4px;
+    width: 10px;
+    height: 10px;
+    z-index: 10000;
+    pointer-events: none;
+    
+    /* Simple corner visual: Line bottom and right */
+    border-bottom: 2px solid rgba(255, 255, 255, 0.5);
+    border-right: 2px solid rgba(255, 255, 255, 0.5);
+    border-bottom-right-radius: 2px;
+}
+
+
+

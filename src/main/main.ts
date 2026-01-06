@@ -1,4 +1,4 @@
-import { app, BrowserWindow, globalShortcut, clipboard, ipcMain, screen, Tray, Menu, nativeImage } from 'electron';
+import { app, BrowserWindow, globalShortcut, clipboard, ipcMain, screen, Tray, Menu, nativeImage, shell, dialog } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 import { simulatePaste, simulateCopy, releaseModifiers } from './automation';
@@ -20,7 +20,7 @@ let genAI: GoogleGenerativeAI | null = null;
 let geminiModel: any = null;
 
 function createTray() {
-    const iconPath = path.join(__dirname, '../../assets/tactio-logo.svg'); // Updated to use tactio-logo.svg
+    const iconPath = path.join(__dirname, '../../assets/tactio-logo.ico'); // Updated to use tactio-logo.ico
     const icon = nativeImage.createFromPath(iconPath);
     tray = new Tray(icon);
 
@@ -101,7 +101,7 @@ function createWindow() {
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
         },
-        icon: path.join(__dirname, '../../assets/tactio-logo.svg')
+        icon: path.join(__dirname, '../../assets/tactio-logo.ico')
     });
 
     mainWindow.loadFile(path.join(__dirname, '../../src/renderer/index.html'));
@@ -299,14 +299,22 @@ ipcMain.handle('get-settings', () => {
     return {
         service: store.get('service') || 'GEMINI',
         apiKey: store.get('apiKey') || '',
-        model: store.get('model') || 'gemini-2.0-flash-lite-001'
+        model: store.get('model') || 'gemini-2.0-flash-lite-001',
+        outputMode: store.get('outputMode') || 'paste',
+        outputDirectory: store.get('outputDirectory') || path.join(app.getPath('documents'), 'Tactio Output'),
+        onlyFreeModels: store.get('onlyFreeModels') || false
     };
 });
 
 ipcMain.handle('save-settings', (event, newSettings) => {
-    store.set('service', newSettings.service);
-    store.set('apiKey', newSettings.apiKey);
-    store.set('model', newSettings.model);
+    if (newSettings.service !== undefined) store.set('service', newSettings.service);
+    if (newSettings.apiKey !== undefined) store.set('apiKey', newSettings.apiKey);
+    if (newSettings.model !== undefined) store.set('model', newSettings.model);
+    if (newSettings.outputMode !== undefined) store.set('outputMode', newSettings.outputMode);
+    if (newSettings.outputDirectory !== undefined) store.set('outputDirectory', newSettings.outputDirectory);
+    if (newSettings.actions !== undefined) store.set('actions', newSettings.actions);
+    if (newSettings.onlyFreeModels !== undefined) store.set('onlyFreeModels', newSettings.onlyFreeModels);
+
     initializeLLM(); // Re-initialize with new settings
     return true;
 });
@@ -320,7 +328,8 @@ ipcMain.handle('get-models', async (event, service, apiKey) => {
             return data.data.map((m: any) => ({
                 id: m.id,
                 name: m.name,
-                context_length: m.context_length
+                context_length: m.context_length,
+                pricing: m.pricing // Pass pricing info
             })).sort((a: any, b: any) => a.id.localeCompare(b.id)); // Sort A-Z
         } catch (e) {
             console.error("Failed to fetch OpenRouter models:", e);
@@ -424,4 +433,74 @@ ipcMain.handle('toggle-pin', (event) => {
 
 ipcMain.on('close-window', () => {
     mainWindow?.hide();
+});
+ipcMain.handle('save-content-to-file', async (event, content, extension = 'md') => {
+    try {
+        let outputDir = store.get('outputDirectory');
+        if (!outputDir) {
+            outputDir = path.join(app.getPath('documents'), 'Tactio Output');
+        }
+
+        if (!fs.existsSync(outputDir)) {
+            fs.mkdirSync(outputDir, { recursive: true });
+        }
+
+        // Try to infer filename
+        let filename = '';
+        try {
+            // Generate filename
+            const namePrompt = "Generate a very short, concise filename (max 5 words, kebab-case) for the following text. Do not include markdown formatting or extension. Just the string.";
+            const inferredName = await executeLLM(namePrompt, content.substring(0, 1000)); // Limit context for speed
+
+            // Sanitize filename
+            filename = inferredName.replace(/[^a-z0-9\-_]/gi, '').trim();
+            if (filename.length > 50) filename = filename.substring(0, 50);
+        } catch (e) {
+            console.log("Failed to infer filename, using timestamp", e);
+        }
+
+        if (!filename || filename.length < 3) {
+            const now = new Date();
+            const timestamp = now.toISOString().replace(/T/, '_').replace(/\..+/, '').replace(/:/g, '-');
+            filename = `tactio_${timestamp}`;
+        }
+
+        // Avoid duplicates
+        let fullPath = path.join(outputDir, `${filename}.${extension}`);
+        let counter = 1;
+        while (fs.existsSync(fullPath)) {
+            fullPath = path.join(outputDir, `${filename}_${counter}.${extension}`);
+            counter++;
+        }
+
+        fs.writeFileSync(fullPath, content, 'utf8');
+        return fullPath;
+    } catch (error: any) {
+        console.error('Failed to save file:', error);
+        throw new Error(`Failed to save file: ${error.message}`);
+    }
+});
+
+ipcMain.handle('open-output-folder', async () => {
+    let outputDir = store.get('outputDirectory');
+    if (!outputDir) {
+        outputDir = path.join(app.getPath('documents'), 'Tactio Output');
+    }
+    if (!fs.existsSync(outputDir)) {
+        fs.mkdirSync(outputDir, { recursive: true });
+    }
+    await shell.openPath(outputDir);
+});
+
+ipcMain.handle('select-output-directory', async () => {
+    if (!mainWindow) return null;
+    const result = await dialog.showOpenDialog(mainWindow, {
+        properties: ['openDirectory', 'createDirectory', 'promptToCreate'],
+        title: 'Select Output Directory'
+    });
+
+    if (result.canceled || result.filePaths.length === 0) {
+        return null;
+    }
+    return result.filePaths[0];
 });

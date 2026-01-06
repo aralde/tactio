@@ -21,7 +21,16 @@
 
         <div id="actions-section">
 
-            <div class="section-header">Actions</div>
+            <div class="actions-header-container">
+                <div class="section-header">Actions</div>
+                <div id="mode-controls">
+                    <div id="mode-toggle" class="toggle-switch" title="Toggle Output Mode">
+                        <div class="toggle-option active" data-mode="paste">📋</div>
+                        <div class="toggle-option" data-mode="file">💾</div>
+                    </div>
+                    <button id="open-folder-btn" class="icon-btn" title="Open Output Folder">📂</button>
+                </div>
+            </div>
             <div id="actions-list"></div>
         </div>
         <div id="status-bar" class="hidden">Processing...</div>
@@ -47,10 +56,22 @@
             <label for="api-key-input">API Key:</label>
             <input type="password" id="api-key-input" placeholder="Enter API Key">
 
-            <label for="model-select">Model:</label>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                <label for="model-select" style="margin: 0;">Model:</label>
+                <div style="display: flex; align-items: center;">
+                    <input type="checkbox" id="only-free-models-check" style="margin-right: 4px; margin-bottom: 0;">
+                    <label for="only-free-models-check" style="margin: 0; font-size: 0.8em; cursor: pointer; white-space: nowrap; opacity: 0.9;">Only Free Models</label>
+                </div>
+            </div>
             <select id="model-select">
                 <option value="" disabled selected>Select a Model</option>
             </select>
+
+            <label for="output-dir-input">Output Directory:</label>
+            <div class="input-group">
+                <input type="text" id="output-dir-input" placeholder="Default: Documents/Tactio Output">
+                <button id="select-dir-btn" title="Browse">...</button>
+            </div>
 
             <div class="modal-actions">
                 <button id="save-settings-btn">Save</button>
@@ -58,6 +79,52 @@
             </div>
         </div>
     </div>
+
+    <!-- Prompt Manager Modal -->
+    <div id="prompt-manager-modal" class="hidden">
+        <div class="modal-content">
+            <div id="manager-list-view">
+                <h3>Manage Prompts</h3>
+                <div id="manager-prompts-list" class="manager-list">
+                    <!-- Items injected here -->
+                </div>
+                <div class="modal-actions">
+                    <button id="manager-add-btn">Add New (+)</button>
+                    <button id="manager-close-btn">Close</button>
+                </div>
+            </div>
+
+            <div id="manager-form-view" class="hidden">
+                <h3 id="manager-form-title">Edit Prompt</h3>
+                
+                <input type="hidden" id="edit-index-input">
+
+                <label>Label:</label>
+                <input type="text" id="prompt-label-input" placeholder="e.g. Summarize">
+
+                <label>Icon (Emoji or text):</label>
+                <div class="input-group">
+                    <input type="text" id="prompt-icon-input" placeholder="e.g. 📝" maxlength="4">
+                    <button id="emoji-picker-btn" title="Pick Emoji">😊</button>
+                </div>
+                <div id="emoji-palette" class="hidden">
+                    <!-- Emojis injected via JS -->
+                </div>
+
+                <label>Prompt:</label>
+                <textarea id="prompt-text-input" placeholder="Enter system prompt..."></textarea>
+
+                <div class="modal-actions">
+                    <button id="prompt-delete-btn" class="danger-btn hidden">Delete</button>
+                    <button id="prompt-save-btn">Save</button>
+                    <button id="prompt-cancel-btn">Back</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resize Handle -->
+    <div id="resize-handle"></div>
 
     <script src="../../dist/renderer/renderer.js"></script>
 </body>
