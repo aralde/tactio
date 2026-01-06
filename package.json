@@ -1,13 +1,14 @@
 {
   "name": "tactio",
   "version": "1.0.0",
-  "description": "A productivity tool using LLMs for Copy. Transform. Paste.",
+  "description": "Tactio - A productivity tool using LLMs for Copy. Transform. Paste.",
   "main": "dist/main/main.js",
   "scripts": {
     "start": "tsc && electron .",
     "build": "tsc",
     "build:portable": "tsc && electron-builder --win portable",
-    "rebuild": "electron-rebuild -f -w robotjs"
+    "rebuild": "electron-rebuild -f -w robotjs",
+    "postinstall": "electron-builder install-app-deps"
   },
   "keywords": [],
   "author": "",
@@ -16,11 +17,11 @@
     "npmRebuild": false,
     "appId": "com.arieldeibe.tactio",
     "productName": "Tactio",
-    "icon": "assets/tactio-logo.svg",
+    "icon": "assets/tactio-logo.ico",
     "win": {
       "target": "portable",
       "artifactName": "${productName}Portable_${version}.${ext}",
-      "icon": "assets/tactio-logo.svg"
+      "icon": "assets/tactio-logo.ico"
     },
     "directories": {
       "output": "dist-build"

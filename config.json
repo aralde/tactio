@@ -12,13 +12,13 @@
         },
         {
             "label": "Translate to English",
-            "icon": "🇬🇧",
+            "icon": "asda",
             "prompt": "Translate the following text to English (dont any additional info or formatting):"
-        },
-        {
-            "label": "Fix Grammar",
-            "icon": "✨",
-            "prompt": "Fix the grammar and spelling of the following text (dont any additional info or formatting):"
         }
-    ]
+    ],
+    "service": "OPENROUTER",
+    "model": "nvidia/nemotron-3-nano-30b-a3b:free",
+    "outputDirectory": "T:\\users\\arideibe\\Documents\\Tactio Output",
+    "outputMode": "file",
+    "onlyFreeModels": false
 }
