@@ -140,7 +140,8 @@ saveSettingsBtn.onclick = async () => {
         apiKey: apiKeyInput.value,
         model: modelSelect.value,
         outputDirectory: outputDirInput.value, // Save dir
-        onlyFreeModels: onlyFreeModelsCheck.checked // Save checkbox state
+        onlyFreeModels: onlyFreeModelsCheck.checked, // Save checkbox state
+        generateMetadata: generateMetadataCheck.checked // Save metadata toggle
     };
     await window.api.saveSettings(newSettings);
     settingsModal.classList.add('hidden');
@@ -172,7 +173,10 @@ async function populateSettingsForm(settings: any) {
     await updateModelList(settings.model);
 
     outputDirInput.value = settings.outputDirectory || '';
+    generateMetadataCheck.checked = settings.generateMetadata !== false; // Default true
 }
+
+const generateMetadataCheck = document.getElementById('generate-metadata-check') as HTMLInputElement;
 
 if (onlyFreeModelsCheck) {
     onlyFreeModelsCheck.onchange = () => {

@@ -45,6 +45,6 @@
         }
     ],
     "outputDirectory": "T:\\users\\arideibe\\Documents\\Tactio Output",
-    "outputMode": "paste",
+    "outputMode": "file",
     "onlyFreeModels": false
 }

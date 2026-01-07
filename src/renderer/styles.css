@@ -354,6 +354,12 @@ body.loading * {
     border-color: #0078d4;
 }
 
+.modal-content input[type="checkbox"] {
+    width: auto;
+    margin-bottom: 0;
+    cursor: pointer;
+}
+
 .modal-actions {
     display: flex;
     justify-content: flex-end;

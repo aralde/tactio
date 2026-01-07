@@ -31,18 +31,45 @@ const saveContentToFile = async (content: string, extension: string = 'md'): Pro
         fs.mkdirSync(outputDir, { recursive: true });
     }
 
-    // Try to infer filename
     let filename = '';
-    try {
-        // Generate filename
-        const namePrompt = "Generate a very short, concise filename (max 5 words, kebab-case) for the following text. Do not include markdown formatting or extension. Just the string.";
-        const inferredName = await executeLLM(namePrompt, content.substring(0, 1000)); // Limit context for speed
+    let contentToWrite = content;
+    const useMetadata = store.get('generateMetadata') !== false; // Default true
 
-        // Sanitize filename
-        filename = inferredName.replace(/[^a-z0-9\-_]/gi, '').trim();
-        if (filename.length > 50) filename = filename.substring(0, 50);
-    } catch (e) {
-        console.log("Failed to infer filename, using timestamp", e);
+    if (useMetadata) {
+        try {
+            // Generate metadata (filename, summary, tags)
+            const metadataPrompt = `
+Analyze the following text and generate a JSON object with these fields:
+1. "filename": A concise, kebab-case filename (max 50 chars).
+2. "summary": A single brief sentence summarizing the content (in the same language as the content).
+3. "tags": An array of up to 5 relevant tags starting with # (e.g. ["#code", "#idea"]).
+
+Return ONLY the raw JSON string, no markdown code blocks.
+`;
+
+            let llmOutput = await executeLLM(metadataPrompt, content.substring(0, 4000));
+
+            // Clean up markdown code blocks if present (common with LLMs)
+            llmOutput = llmOutput.replace(/```json/g, '').replace(/```/g, '').trim();
+
+            const metadata = JSON.parse(llmOutput);
+
+            if (metadata.filename) {
+                filename = metadata.filename.replace(/[^a-z0-9\-_]/gi, '').trim();
+                if (filename.length > 50) filename = filename.substring(0, 50);
+            }
+
+            const summary = metadata.summary || '';
+            const tags = Array.isArray(metadata.tags) ? metadata.tags.join(' ') : '';
+
+            // Prepend summary and tags if they exist
+            if (summary || tags) {
+                contentToWrite = `${summary}\n${tags}\n\n${content}`;
+            }
+
+        } catch (e) {
+            console.log("Failed to infer metadata, using fallback", e);
+        }
     }
 
     if (!filename || filename.length < 3) {
@@ -59,7 +86,7 @@ const saveContentToFile = async (content: string, extension: string = 'md'): Pro
         counter++;
     }
 
-    fs.writeFileSync(fullPath, content, 'utf8');
+    fs.writeFileSync(fullPath, contentToWrite, 'utf8');
     return fullPath;
 };
 
@@ -405,7 +432,8 @@ ipcMain.handle('get-settings', () => {
         outputDirectory: store.get('outputDirectory') || path.join(app.getPath('documents'), 'Tactio Output'),
 
         onlyFreeModels: store.get('onlyFreeModels') || false,
-        promptVariables: store.get('promptVariables') || []
+        promptVariables: store.get('promptVariables') || [],
+        generateMetadata: store.get('generateMetadata') !== false // Default true
     };
 });
 
@@ -419,6 +447,7 @@ ipcMain.handle('save-settings', (event, newSettings) => {
 
     if (newSettings.onlyFreeModels !== undefined) store.set('onlyFreeModels', newSettings.onlyFreeModels);
     if (newSettings.promptVariables !== undefined) store.set('promptVariables', newSettings.promptVariables);
+    if (newSettings.generateMetadata !== undefined) store.set('generateMetadata', newSettings.generateMetadata);
 
     initializeLLM(); // Re-initialize with new settings
     return true;
