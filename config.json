@@ -1,7 +1,7 @@
 {
-    "service": "OPENROUTER",
+    "service": "GROQ",
     "apiKey": "",
-    "model": "nvidia/nemotron-3-nano-30b-a3b:free",
+    "model": "openai/gpt-oss-120b",
     "actions": [
         {
             "label": "Summarize",
@@ -46,5 +46,6 @@
     ],
     "outputDirectory": "T:\\users\\arideibe\\Documents\\Tactio Output",
     "outputMode": "file",
-    "onlyFreeModels": false
+    "onlyFreeModels": false,
+    "generateMetadata": true
 }

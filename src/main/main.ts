@@ -138,13 +138,14 @@ function initializeLLM() {
     // Read from store, fall back to process.env for backward compatibility/dev
     const service = store.get('service') || process.env.LLM_SERVICE || 'GEMINI';
     const model = store.get('model') || process.env.MODEL || 'gemini-2.0-flash-lite-001';
-    let apiKey = store.get('apiKey');
+    // Unified key retrieval
+    let apiKey = '';
+    if (service === 'GEMINI') apiKey = store.get('geminiApiKey') || process.env.GEMINI_API_KEY;
+    else if (service === 'OPENROUTER') apiKey = store.get('openRouterApiKey') || process.env.OPENROUTER_API_KEY;
+    else if (service === 'GROQ') apiKey = store.get('groqApiKey') || process.env.GROQ_API_KEY; // New Groq support
 
-    // If no API key in store, check env
-    if (!apiKey) {
-        if (service === 'GEMINI') apiKey = process.env.GEMINI_API_KEY;
-        else if (service === 'OPENROUTER') apiKey = process.env.OPENROUTER_API_KEY;
-    }
+    // Fallback to legacy 'apiKey' if still present (though migration should handle it)
+    if (!apiKey) apiKey = store.get('apiKey');
 
     console.log(`Initializing LLM Service: ${service}, Model: ${model}`);
 
@@ -158,6 +159,8 @@ function initializeLLM() {
         }
     } else if (service === 'OPENROUTER') {
         // OpenRouter doesn't need SDK init here, handled in execute
+    } else if (service === 'GROQ') {
+        // Groq handled via fetch in execute
     }
 }
 
@@ -211,13 +214,14 @@ async function executeLLM(prompt: string, text: string): Promise<string> {
     const fullPrompt = `${prompt}\n\n"${text}"`;
     const service = store.get('service') || process.env.LLM_SERVICE || 'GEMINI';
     const modelName = store.get('model') || process.env.MODEL || 'gemini-2.0-flash-lite-001';
-    let apiKey = store.get('apiKey');
+    // Unified key retrieval
+    let apiKey = '';
+    if (service === 'GEMINI') apiKey = store.get('geminiApiKey') || process.env.GEMINI_API_KEY;
+    else if (service === 'OPENROUTER') apiKey = store.get('openRouterApiKey') || process.env.OPENROUTER_API_KEY;
+    else if (service === 'GROQ') apiKey = store.get('groqApiKey') || process.env.GROQ_API_KEY;
 
-    // Env fallback
-    if (!apiKey) {
-        if (service === 'GEMINI') apiKey = process.env.GEMINI_API_KEY;
-        else if (service === 'OPENROUTER') apiKey = process.env.OPENROUTER_API_KEY;
-    }
+    // Fallback
+    if (!apiKey) apiKey = store.get('apiKey');
 
     if (service === 'GEMINI') {
         if (!geminiModel) {
@@ -267,6 +271,36 @@ async function executeLLM(prompt: string, text: string): Promise<string> {
         } catch (error: any) {
             console.error("OpenRouter API Error:", error);
             throw new Error(`OpenRouter Failed: ${error.message || 'Unknown error'}`);
+        }
+    } else if (service === 'GROQ') {
+        if (!apiKey) throw new Error("Groq API Key missing. Please configure settings.");
+
+        try {
+            const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${apiKey}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    "model": modelName,
+                    "messages": [
+                        { "role": "user", "content": fullPrompt }
+                    ]
+                })
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Groq Error ${response.status}: ${errorText}`);
+            }
+
+            const data = await response.json();
+            return data.choices?.[0]?.message?.content || "No response content";
+
+        } catch (error: any) {
+            console.error("Groq API Error:", error);
+            throw new Error(`Groq Failed: ${error.message || 'Unknown error'}`);
         }
     } else {
         throw new Error(`Unknown LLM Service: ${service}`);
@@ -426,6 +460,11 @@ ipcMain.on('ui-ready', (event) => {
 ipcMain.handle('get-settings', () => {
     return {
         service: store.get('service') || 'GEMINI',
+        // Return specific keys
+        geminiApiKey: store.get('geminiApiKey') || '',
+        openRouterApiKey: store.get('openRouterApiKey') || '',
+        groqApiKey: store.get('groqApiKey') || '',
+        // Legacy support
         apiKey: store.get('apiKey') || '',
         model: store.get('model') || 'gemini-2.0-flash-lite-001',
         outputMode: store.get('outputMode') || 'paste',
@@ -439,7 +478,22 @@ ipcMain.handle('get-settings', () => {
 
 ipcMain.handle('save-settings', (event, newSettings) => {
     if (newSettings.service !== undefined) store.set('service', newSettings.service);
-    if (newSettings.apiKey !== undefined) store.set('apiKey', newSettings.apiKey);
+
+    // Set specific keys if provided
+    if (newSettings.geminiApiKey !== undefined) store.set('geminiApiKey', newSettings.geminiApiKey);
+    if (newSettings.openRouterApiKey !== undefined) store.set('openRouterApiKey', newSettings.openRouterApiKey);
+    if (newSettings.groqApiKey !== undefined) store.set('groqApiKey', newSettings.groqApiKey);
+
+    // If generic apiKey provided (legacy frontend?), try to map it to current service?
+    // Better to rely on frontend sending specific keys now. 
+    // But for safety, if apiKey is sent and no specific key is sent:
+    if (newSettings.apiKey !== undefined) {
+        // Determine where to put it based on SERVICE, only if specific one wasn't sent logic?
+        // Simpler: Just rely on specific keys. If 'apiKey' is sent, we ignore it or store it in legacy?
+        // Let's store it in legacy just in case, but frontend should update to send specifics.
+        store.set('apiKey', newSettings.apiKey);
+    }
+
     if (newSettings.model !== undefined) store.set('model', newSettings.model);
     if (newSettings.outputMode !== undefined) store.set('outputMode', newSettings.outputMode);
     if (newSettings.outputDirectory !== undefined) store.set('outputDirectory', newSettings.outputDirectory);
@@ -495,6 +549,23 @@ ipcMain.handle('get-models', async (event, service, apiKey) => {
             { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro' },
             { id: 'gemini-1.0-pro', name: 'Gemini 1.0 Pro' }
         ];
+    } else if (service === 'GROQ') {
+        if (!apiKey) return [];
+        try {
+            const response = await fetch("https://api.groq.com/openai/v1/models", {
+                headers: { "Authorization": `Bearer ${apiKey}` }
+            });
+            const data = await response.json();
+            return data.data.map((m: any) => ({
+                id: m.id,
+                name: m.id, // Groq uses ID as name essentially
+                context_length: m.context_window || 8192, // Fallback
+                // pricing: unknown for Groq API standard response usually?
+            })).sort((a: any, b: any) => a.id.localeCompare(b.id));
+        } catch (e) {
+            console.error("Failed to fetch Groq models:", e);
+            return [];
+        }
     }
     return [];
 });

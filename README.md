@@ -10,6 +10,7 @@
 * **AI Integrations**:
   * **Google Gemini**: fast and free tier available.
   * **OpenRouter**: access to top-tier models (GPT-4, Claude 3, Llama 3, etc.).
+  * **Groq**: incredibly fast inference speeds.
 * **Customizable Actions**: Define your own quick actions (e.g., "Summarize", "Fix Grammar", "Translate") in `config.json`.
 * **One-Click Paste**: Automatically pastes the transformed text back into your active application.
 
@@ -17,8 +18,9 @@
 
 * **Node.js**: (Version 18 or higher recommended)
 * **API Key**:
-  * [Google Gemini API Key](https://aistudio.google.com/app/apikey) OR
+  * [Google Gemini API Key](https://aistudio.google.com/app/apikey)
   * [OpenRouter API Key](https://openrouter.ai/keys)
+  * [Groq API Key](https://console.groq.com/keys)
 
 ## 📥 Installation
 
@@ -67,6 +69,14 @@ GEMINI_API_KEY=your_gemini_api_key_here
 LLM_SERVICE=OPENROUTER
 MODEL=nvidia/nemotron-3-nano-30b-a3b:free
 OPENROUTER_API_KEY=your_openrouter_api_key_here
+```
+
+**For Groq:**
+
+```env
+LLM_SERVICE=GROQ
+MODEL=llama3-70b-8192
+GROQ_API_KEY=your_groq_api_key_here
 ```
 
 ### 2. Custom Actions (config.json)
