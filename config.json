@@ -1,4 +1,7 @@
 {
+    "service": "OPENROUTER",
+    "apiKey": "",
+    "model": "nvidia/nemotron-3-nano-30b-a3b:free",
     "actions": [
         {
             "label": "Summarize",
@@ -16,9 +19,32 @@
             "prompt": "Translate the following text to English (dont any additional info or formatting):"
         }
     ],
-    "service": "OPENROUTER",
-    "model": "nvidia/nemotron-3-nano-30b-a3b:free",
+    "promptVariables": [
+        {
+            "key": "tone",
+            "label": "Tone",
+            "options": [
+                "Professional",
+                "Casual",
+                "Enthusiastic",
+                "Concise"
+            ],
+            "selected": "Professional"
+        },
+        {
+            "key": "language",
+            "label": "Language",
+            "options": [
+                "English",
+                "Spanish",
+                "French",
+                "German",
+                "Japanese"
+            ],
+            "selected": "Japanese"
+        }
+    ],
     "outputDirectory": "T:\\users\\arideibe\\Documents\\Tactio Output",
-    "outputMode": "file",
+    "outputMode": "paste",
     "onlyFreeModels": false
 }

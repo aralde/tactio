@@ -401,6 +401,54 @@ select,
     -webkit-app-region: no-drag;
 }
 
+/* --- Variable Controls --- */
+#variables-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
+    padding: 0 2px;
+}
+
+.variable-control {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 80px; /* Grow, shrink, base width */
+    max-width: 48%; /* Ensure 2 per row roughly */
+}
+
+.variable-label {
+    font-size: 9px;
+    color: #999;
+    margin-bottom: 3px;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.variable-select {
+    background: #2b2b2b;
+    border: 1px solid #444;
+    color: #e0e0e0;
+    font-size: 11px;
+    padding: 4px;
+    border-radius: 4px;
+    width: 100%;
+    cursor: pointer;
+    font-family: 'Segoe UI', sans-serif;
+    outline: none;
+    -webkit-app-region: no-drag;
+}
+
+.variable-select:hover {
+    background: #333;
+    border-color: #555;
+}
+
+.variable-select:focus {
+    border-color: #0078d4;
+}
+
+
 /* --- New Mode Controls styling --- */
 
 .actions-header-container {
@@ -586,6 +634,36 @@ textarea#prompt-text-input:focus {
 }
 
 /* Emoji Picker */
+/* Variable Insertion Chips */
+.chips-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 15px;
+}
+
+.variable-chip {
+    background: #333;
+    border: 1px solid #444;
+    color: #cecece;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+    user-select: none;
+    font-family: monospace;
+}
+
+.variable-chip:hover {
+    background: #0078d4;
+    color: white;
+    border-color: #0078d4;
+}
+
+.variable-chip:active {
+    transform: scale(0.95);
+}
 #emoji-palette {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(24px, 1fr)); /* Responsive grid */

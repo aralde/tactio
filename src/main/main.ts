@@ -341,6 +341,7 @@ app.whenReady().then(() => {
         }
 
         try {
+            // Reapply uses the baked-in prompt from last time (effectivePrompt)
             const result = await executeLLM(lastActionPrompt, text);
 
             // Check output mode
@@ -402,7 +403,9 @@ ipcMain.handle('get-settings', () => {
         model: store.get('model') || 'gemini-2.0-flash-lite-001',
         outputMode: store.get('outputMode') || 'paste',
         outputDirectory: store.get('outputDirectory') || path.join(app.getPath('documents'), 'Tactio Output'),
-        onlyFreeModels: store.get('onlyFreeModels') || false
+
+        onlyFreeModels: store.get('onlyFreeModels') || false,
+        promptVariables: store.get('promptVariables') || []
     };
 });
 
@@ -413,7 +416,9 @@ ipcMain.handle('save-settings', (event, newSettings) => {
     if (newSettings.outputMode !== undefined) store.set('outputMode', newSettings.outputMode);
     if (newSettings.outputDirectory !== undefined) store.set('outputDirectory', newSettings.outputDirectory);
     if (newSettings.actions !== undefined) store.set('actions', newSettings.actions);
+
     if (newSettings.onlyFreeModels !== undefined) store.set('onlyFreeModels', newSettings.onlyFreeModels);
+    if (newSettings.promptVariables !== undefined) store.set('promptVariables', newSettings.promptVariables);
 
     initializeLLM(); // Re-initialize with new settings
     return true;
@@ -465,13 +470,28 @@ ipcMain.handle('get-models', async (event, service, apiKey) => {
     return [];
 });
 
-ipcMain.handle('trigger-action', async (event, actionLabel, prompt) => {
+ipcMain.handle('trigger-action', async (event, actionLabel, prompt, style = 'normal') => {
     const totalStart = performance.now();
-    console.log(`[Timing] Starting action: ${actionLabel}`);
+    console.log(`[Timing] Starting action: ${actionLabel}, Style: ${style}`);
 
     try {
-        // Save prompt for reapply
-        lastActionPrompt = prompt;
+        // Save prompt for reapply (we might want to save style too later, but for now just prompt)
+        // If we want reapply to respect style, we need to save it. 
+        // Let's assume reapply uses the same lastActionPrompt which now we should bake the style into? 
+        // Or store lastActionStyle?
+
+        // Let's bake the style into a temporary "effective prompt" for execution, 
+        // but for reapply we might need to know the style. 
+        // Simplest: construct the full prompt here.
+
+        let systemInstruction = "";
+        if (style === 'professional') systemInstruction = "System: Respond in a highly professional, business-appropriate tone.\n";
+        else if (style === 'casual') systemInstruction = "System: Respond in a casual, friendly, and conversational tone.\n";
+        else if (style === 'concise') systemInstruction = "System: Respond strictly with the requested information. Do not add any introductory or concluding remarks. No formatting unless requested.\n";
+
+        const effectivePrompt = systemInstruction ? `${systemInstruction}\n${prompt}` : prompt;
+        lastActionPrompt = effectivePrompt;
+
 
         // REMOVED: mainWindow?.hide(); // We keep it open for loading state
 
@@ -484,8 +504,11 @@ ipcMain.handle('trigger-action', async (event, actionLabel, prompt) => {
 
         console.log(`Executing action: ${actionLabel}`);
 
+        // Substitute Variables (REMOVED)
+        // const finalPrompt = substituteVariables(prompt);
+
         const geminiStart = performance.now();
-        const result = await executeLLM(prompt, text);
+        const result = await executeLLM(effectivePrompt, text);
         const geminiEnd = performance.now();
         console.log(`[Timing] Gemini execution: ${(geminiEnd - geminiStart).toFixed(2)}ms`);
 

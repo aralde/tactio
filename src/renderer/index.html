@@ -31,6 +31,7 @@
                     <button id="open-folder-btn" class="icon-btn" title="Open Output Folder">📂</button>
                 </div>
             </div>
+            <!-- Variables container removed -->
             <div id="actions-list"></div>
         </div>
         <div id="status-bar" class="hidden">Processing...</div>
@@ -110,6 +111,14 @@
                 <div id="emoji-palette" class="hidden">
                     <!-- Emojis injected via JS -->
                 </div>
+
+                <label>Response Style:</label>
+                <select id="prompt-style-select">
+                    <option value="normal">Normal</option>
+                    <option value="professional">Professional</option>
+                    <option value="casual">Casual</option>
+                    <option value="concise">Concise (Strict)</option>
+                </select>
 
                 <label>Prompt:</label>
                 <textarea id="prompt-text-input" placeholder="Enter system prompt..."></textarea>
