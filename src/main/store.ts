@@ -9,7 +9,7 @@ export class Store {
     private secretsData: Record<string, string> = {}; // Encrypted hex strings if using safeStorage
 
     // Keys that should be stored in secrets.json
-    private readonly encryptedKeys = ['apiKey'];
+    private readonly encryptedKeys = ['apiKey', 'geminiApiKey', 'openRouterApiKey', 'groqApiKey'];
 
     constructor(private opts: { configName: string; defaults: Record<string, any> }) {
         this.configData = opts.defaults;
@@ -39,6 +39,23 @@ export class Store {
                 delete this.configData[key];
                 migrationNeeded = true;
             }
+        }
+
+        // Migration: Legacy single 'apiKey' to specific keys
+        // If we have a legacy 'apiKey' in secrets but no specific key, try to assign it
+        // We can't easily know which one it was for without checking 'service', but we can try.
+        const legacyKey = this.getSecret('apiKey');
+        if (legacyKey) {
+            const currentService = this.configData['service'] || 'GEMINI';
+            if (currentService === 'GEMINI' && !this.getSecret('geminiApiKey')) {
+                console.log('[Store] Migrating legacy apiKey to geminiApiKey');
+                this.setSecret('geminiApiKey', legacyKey);
+            } else if (currentService === 'OPENROUTER' && !this.getSecret('openRouterApiKey')) {
+                console.log('[Store] Migrating legacy apiKey to openRouterApiKey');
+                this.setSecret('openRouterApiKey', legacyKey);
+            }
+            // Clear legacy key to avoid confusion
+            this.setSecret('apiKey', '');
         }
 
         if (migrationNeeded) {

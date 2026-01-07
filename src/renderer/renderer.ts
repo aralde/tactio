@@ -39,6 +39,7 @@ const cancelSettingsBtn = document.getElementById('cancel-settings-btn') as HTML
 
 // New Checkbox
 const onlyFreeModelsCheck = document.getElementById('only-free-models-check') as HTMLInputElement;
+const freeModelsContainer = document.getElementById('free-models-container') as HTMLDivElement;
 
 const modeToggle = document.getElementById('mode-toggle') as HTMLDivElement;
 const openFolderBtn = document.getElementById('open-folder-btn') as HTMLButtonElement;
@@ -124,8 +125,12 @@ if (closeBtn) {
 
 // --- Settings Logic ---
 
+// Local state for settings form
+let formSettings: any = {};
+
 settingsIcon.onclick = async () => {
     const settings = await window.api.getSettings();
+    formSettings = settings; // Store for form usage
     populateSettingsForm(settings);
     settingsModal.classList.remove('hidden');
 };
@@ -135,37 +140,82 @@ cancelSettingsBtn.onclick = () => {
 };
 
 saveSettingsBtn.onclick = async () => {
+    // Update the current service's key in our formSettings before saving
+    // (in case user edited it but didn't trigger blur/change events or just to be safe)
+    const currentService = serviceSelect.value;
+    updateKeyInSettings(currentService, apiKeyInput.value);
+
     const newSettings = {
         service: serviceSelect.value,
+        // Send all keys back (modified or original)
+        geminiApiKey: formSettings.geminiApiKey,
+        openRouterApiKey: formSettings.openRouterApiKey,
+        groqApiKey: formSettings.groqApiKey,
+        // Legacy fallback - keeping it consistent with current service just in case
         apiKey: apiKeyInput.value,
+
         model: modelSelect.value,
-        outputDirectory: outputDirInput.value, // Save dir
-        onlyFreeModels: onlyFreeModelsCheck.checked, // Save checkbox state
-        generateMetadata: generateMetadataCheck.checked // Save metadata toggle
+        outputDirectory: outputDirInput.value,
+        onlyFreeModels: onlyFreeModelsCheck.checked,
+        generateMetadata: generateMetadataCheck.checked
     };
     await window.api.saveSettings(newSettings);
     settingsModal.classList.add('hidden');
-    // Optional: Show success toast
 };
 
 serviceSelect.onchange = async () => {
+    // 1. Save the key from the PREVIOUS service into formSettings
+    // Actually, we don't know the previous service easily unless we track it.
+    // Better approach: always update formSettings on input change (oninput/onblur).
+    // So here we just load the NEW service's key.
+
+    // CURRENT Issue: If I type a key, then switch service, the typed key might be lost if I didn't blur?
+    // Let's assume onblur handles it, or we handle it here if we tracked 'lastService'.
+    // For simplicity, let's just update formSettings based on the displayed value for the *current* 
+    // service before switching, but looking up "current" from select.value returns the NEW one.
+    // So we need to store 'lastService' or rely on oninput. 
+    // Let's stick to updating formSettings on 'input' event of the text box.
+
+    const newService = serviceSelect.value;
+
+    // Load key for new service
+    apiKeyInput.value = getKeyForService(newService);
+
+    // Update models
     updateModelList();
 };
 
+apiKeyInput.oninput = () => {
+    updateKeyInSettings(serviceSelect.value, apiKeyInput.value);
+}
+
 apiKeyInput.onblur = async () => {
-    // Refresh models when API key changes (needed for OpenRouter)
-    if (serviceSelect.value === 'OPENROUTER') {
+    // Refresh models when API key changes (needed for OpenRouter/Groq)
+    const service = serviceSelect.value;
+    if (service === 'OPENROUTER' || service === 'GROQ') {
         updateModelList();
     }
 };
 
+function getKeyForService(service: string) {
+    if (service === 'GEMINI') return formSettings.geminiApiKey || '';
+    if (service === 'OPENROUTER') return formSettings.openRouterApiKey || '';
+    if (service === 'GROQ') return formSettings.groqApiKey || '';
+    return '';
+}
+
+function updateKeyInSettings(service: string, key: string) {
+    if (service === 'GEMINI') formSettings.geminiApiKey = key;
+    else if (service === 'OPENROUTER') formSettings.openRouterApiKey = key;
+    else if (service === 'GROQ') formSettings.groqApiKey = key;
+}
+
 async function populateSettingsForm(settings: any) {
     serviceSelect.value = settings.service;
-    apiKeyInput.value = settings.apiKey;
+    apiKeyInput.value = getKeyForService(settings.service);
 
-    // Initial fetch of models
-    // Pass the saved state to updateModelList implicitly via the checkbox logic which we set below?
-    // No, populateSettingsForm is called when opening settings.
+    // Fallback for migration: if specific key is empty but 'apiKey' (legacy) exists AND match service?
+    // handled in store.ts migration, so we should be good.
 
     onlyFreeModelsCheck.checked = settings.onlyFreeModels || false;
 
@@ -173,7 +223,7 @@ async function populateSettingsForm(settings: any) {
     await updateModelList(settings.model);
 
     outputDirInput.value = settings.outputDirectory || '';
-    generateMetadataCheck.checked = settings.generateMetadata !== false; // Default true
+    generateMetadataCheck.checked = settings.generateMetadata !== false;
 }
 
 const generateMetadataCheck = document.getElementById('generate-metadata-check') as HTMLInputElement;
@@ -199,6 +249,13 @@ async function updateModelList(selectedModelId: string | null = null) {
 
     modelSelect.innerHTML = '<option>Loading...</option>';
     modelSelect.disabled = true;
+
+    // Toggle Free Models Checkbox
+    if (service === 'GROQ' || service === 'GEMINI') {
+        freeModelsContainer.classList.add('hidden');
+    } else {
+        freeModelsContainer.classList.remove('hidden');
+    }
 
     try {
         const models = await window.api.getModels(service, apiKey);
