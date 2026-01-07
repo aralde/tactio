@@ -1,6 +1,6 @@
 // Define the API exposed by preload
 interface WindowAPI {
-    triggerAction: (label: string, prompt: string) => Promise<string>;
+    triggerAction: (label: string, prompt: string, style?: string) => Promise<string>;
     onConfigUpdate: (callback: (config: any) => void) => void;
     uiReady: () => void;
     pasteResult: (text: string) => Promise<void>;
@@ -19,6 +19,7 @@ interface Window {
 }
 
 const actionsList = document.getElementById('actions-list') as HTMLDivElement;
+// Variables container removed
 const statusBar = document.getElementById('status-bar') as HTMLDivElement;
 const resultContainer = document.getElementById('result-container') as HTMLDivElement;
 const historyList = document.getElementById('history-list') as HTMLDivElement;
@@ -56,6 +57,7 @@ window.api.onConfigUpdate((data: any) => {
     const clipboardText = data.clipboardText || '';
 
     renderActions(config.actions);
+    // renderVariables(config.promptVariables); // REMOVED
 
     // Load saved mode
     if (config.outputMode) {
@@ -324,7 +326,7 @@ function renderActions(actions: any[]) {
         const shortcutHint = index < 9 ? ` (Alt+${index + 1})` : '';
         button.title = action.label + shortcutHint; // Tooltip content
 
-        button.onclick = () => handleAction(action.label, action.prompt);
+        button.onclick = () => handleAction(action.label, action.prompt, action.style);
         actionsList.appendChild(button);
     });
 
@@ -338,10 +340,12 @@ function renderActions(actions: any[]) {
     actionsList.appendChild(addBtn);
 }
 
-async function handleAction(label: string, prompt: string) {
+// Global renderVariables REMOVED per user request
+
+async function handleAction(label: string, prompt: string, style?: string) {
     setLoading(true);
     try {
-        const result = await window.api.triggerAction(label, prompt);
+        const result = await window.api.triggerAction(label, prompt, style);
 
         if (result.startsWith('Error:')) {
             throw new Error(result);
@@ -427,7 +431,7 @@ document.addEventListener('keydown', (e) => {
         if (currentConfig && currentConfig.actions && currentConfig.actions[index]) {
             const action = currentConfig.actions[index];
             // Visual feedback could be added here (e.g. simulate click)
-            handleAction(action.label, action.prompt);
+            handleAction(action.label, action.prompt, action.style);
         }
     }
 });
@@ -458,6 +462,7 @@ const commonEmojis = [
 // Form elements
 const promptLabelInput = document.getElementById('prompt-label-input') as HTMLInputElement;
 const promptIconInput = document.getElementById('prompt-icon-input') as HTMLInputElement;
+const promptStyleSelect = document.getElementById('prompt-style-select') as HTMLSelectElement; // New
 const promptTextInput = document.getElementById('prompt-text-input') as HTMLTextAreaElement;
 const editIndexInput = document.getElementById('edit-index-input') as HTMLInputElement;
 
@@ -494,6 +499,7 @@ function renderManagerList() {
         item.innerHTML = `
             <div class="manager-item-icon">${action.icon || '📄'}</div>
             <div class="manager-item-label">${action.label}</div>
+            <div class="manager-item-style" style="font-size:10px; color:#666; margin-right:5px;">${action.style || ''}</div>
             <div class="manager-item-edit">Edit ></div>
         `;
         managerPromptsList.appendChild(item);
@@ -504,6 +510,7 @@ function editPrompt(index: number) {
     const action = currentConfig.actions[index];
     promptLabelInput.value = action.label;
     promptIconInput.value = action.icon || '';
+    promptStyleSelect.value = action.style || 'concise'; // Load style
     promptTextInput.value = action.prompt;
     editIndexInput.value = index.toString();
 
@@ -539,10 +546,42 @@ function renderEmojiPalette() {
     });
 }
 
+const variableInsertionContainer = document.getElementById('variable-insertion-container') as HTMLDivElement;
+function renderVariableChips() {
+    if (!variableInsertionContainer) return;
+    variableInsertionContainer.innerHTML = '';
+
+    if (!currentConfig || !currentConfig.promptVariables) return;
+
+    currentConfig.promptVariables.forEach((v: any) => {
+        const chip = document.createElement('span');
+        chip.className = 'variable-chip';
+        chip.textContent = `{{${v.key}}}`;
+        chip.title = `Insert ${v.label} variable`;
+
+        chip.onclick = () => {
+            insertAtCursor(promptTextInput, `{{${v.key}}}`);
+        };
+
+        variableInsertionContainer.appendChild(chip);
+    });
+}
+
+function insertAtCursor(textarea: HTMLTextAreaElement, text: string) {
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const currentText = textarea.value;
+
+    textarea.value = currentText.substring(0, start) + text + currentText.substring(end);
+    textarea.selectionStart = textarea.selectionEnd = start + text.length;
+    textarea.focus();
+}
+
 if (managerAddBtn) {
     managerAddBtn.onclick = () => {
         promptLabelInput.value = '';
         promptIconInput.value = '';
+        promptStyleSelect.value = 'normal';
         promptTextInput.value = '';
         editIndexInput.value = '-1'; // New item
 
@@ -571,6 +610,7 @@ if (promptSaveBtn) {
     promptSaveBtn.onclick = async () => {
         const label = promptLabelInput.value.trim();
         const icon = promptIconInput.value.trim();
+        const style = promptStyleSelect.value;
         const prompt = promptTextInput.value.trim();
         const index = parseInt(editIndexInput.value);
 
@@ -579,7 +619,7 @@ if (promptSaveBtn) {
             return;
         }
 
-        const newAction = { label, icon, prompt };
+        const newAction = { label, icon, style, prompt }; // Save style
         const actions = [...(currentConfig.actions || [])];
 
         if (index >= 0) {
