@@ -18,6 +18,50 @@ let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let genAI: GoogleGenerativeAI | null = null;
 let geminiModel: any = null;
+let lastActionPrompt: string | null = null;
+
+// Helper: Save content to file with smart naming
+const saveContentToFile = async (content: string, extension: string = 'md'): Promise<string> => {
+    let outputDir = store.get('outputDirectory');
+    if (!outputDir) {
+        outputDir = path.join(app.getPath('documents'), 'Tactio Output');
+    }
+
+    if (!fs.existsSync(outputDir)) {
+        fs.mkdirSync(outputDir, { recursive: true });
+    }
+
+    // Try to infer filename
+    let filename = '';
+    try {
+        // Generate filename
+        const namePrompt = "Generate a very short, concise filename (max 5 words, kebab-case) for the following text. Do not include markdown formatting or extension. Just the string.";
+        const inferredName = await executeLLM(namePrompt, content.substring(0, 1000)); // Limit context for speed
+
+        // Sanitize filename
+        filename = inferredName.replace(/[^a-z0-9\-_]/gi, '').trim();
+        if (filename.length > 50) filename = filename.substring(0, 50);
+    } catch (e) {
+        console.log("Failed to infer filename, using timestamp", e);
+    }
+
+    if (!filename || filename.length < 3) {
+        const now = new Date();
+        const timestamp = now.toISOString().replace(/T/, '_').replace(/\..+/, '').replace(/:/g, '-');
+        filename = `tactio_${timestamp}`;
+    }
+
+    // Avoid duplicates
+    let fullPath = path.join(outputDir, `${filename}.${extension}`);
+    let counter = 1;
+    while (fs.existsSync(fullPath)) {
+        fullPath = path.join(outputDir, `${filename}_${counter}.${extension}`);
+        counter++;
+    }
+
+    fs.writeFileSync(fullPath, content, 'utf8');
+    return fullPath;
+};
 
 function createTray() {
     const iconPath = path.join(__dirname, '../../assets/tactio-logo.ico'); // Updated to use tactio-logo.ico
@@ -209,8 +253,43 @@ app.whenReady().then(() => {
     createWindow();
     createTray();
 
+    // Helper: Capture currently selected text
+    const captureSelection = async (): Promise<string> => {
+        // 0. Release modifiers to prevent interference
+        releaseModifiers();
+        await new Promise(resolve => setTimeout(resolve, 300));
+
+        // 1. Clear clipboard to detect new copy
+        clipboard.writeText('');
+
+        // 2. Simulate Copy
+        try {
+            simulateCopy();
+        } catch (err) {
+            console.error('Auto-copy failed:', err);
+            return '';
+        }
+
+        // 3. Poll for clipboard change (max 2.0s)
+        let text = '';
+        const startTime = Date.now();
+        const timeout = 2000;
+
+        while (Date.now() - startTime < timeout) {
+            text = clipboard.readText();
+            if (text && text.length > 0) {
+                break;
+            }
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        return text;
+    };
+
     // Register copy-paste handler
     const handleGlobalShortcut = async () => {
+        console.log('Global Shortcut Triggered (Ctrl+Shift+G)');
+
         // 0. Release modifiers to prevent interference (e.g., Ctrl+Shift+C in Word)
         releaseModifiers();
         await new Promise(resolve => setTimeout(resolve, 300)); // Increased to 300ms
@@ -225,7 +304,7 @@ app.whenReady().then(() => {
             console.error('Auto-copy failed:', err);
         }
 
-        // 3. Poll for clipboard change (max 1.5s)
+        // 3. Poll for clipboard change (max 2.0s)
         let text = '';
         const startTime = Date.now();
         const timeout = 2000; // Increased timeout to 2.0s
@@ -244,36 +323,57 @@ app.whenReady().then(() => {
             showWindowAtCursor(text);
         } else {
             console.log('No new text detected (timeout). Using previous or empty.');
-            // Fallback: If copy failed, maybe they just wanted to open the app?
-            // Or maybe show error? For now show window with what we have (nothing)
-            // or recover previous text if we want to be nice? 
-            // Let's just show window empty for now, or if it really failed, maybe the user
-            // didn't select anything.
-
-            // Restore previous if nothing copied? 
-            // actually if they selected nothing, clearing clipboard means we lost previous.
-            // But usually you select text -> hotkey. 
-            // If no text selected -> Ctrl+C -> clipboard empty.
-
-            // If we want to support "HotKey opens app with OLD clipboard content if nothing selected",
-            // that's a different feature. 
-            // Current requirement: "Copy text".
-
-            // Let's pass empty string if failed.
             showWindowAtCursor('');
+        }
+    };
+
+    const handleReapplyShortcut = async () => {
+        if (!lastActionPrompt) {
+            console.log('No last action to reapply.');
+            return;
+        }
+
+        console.log('Reapplying last action...');
+        const text = await captureSelection();
+        if (!text) {
+            console.log('No text selected for reapply.');
+            return;
+        }
+
+        try {
+            const result = await executeLLM(lastActionPrompt, text);
+
+            // Check output mode
+            const outputMode = store.get('outputMode') || 'paste';
+
+            if (outputMode === 'paste') {
+                clipboard.writeText(result);
+                simulatePaste();
+            } else {
+                // File mode
+                try {
+                    const fullPath = await saveContentToFile(result, 'md');
+                    console.log('Saved to', fullPath);
+                    // shell.showItemInFolder(fullPath); // Optional
+                } catch (e) {
+                    console.error('Failed to auto-save file:', e);
+                }
+            }
+
+        } catch (error) {
+            console.error("Reapply failed:", error);
         }
     };
 
     // Register Global Hotkeys
     const primaryHotkey = 'CommandOrControl+Shift+G';
-    const ret = globalShortcut.register(primaryHotkey, handleGlobalShortcut);
+    const reapplyHotkey = 'CommandOrControl+Shift+R';
 
-    if (!ret) {
-        console.log('registration failed');
-    }
+    globalShortcut.register(primaryHotkey, handleGlobalShortcut);
+    globalShortcut.register(reapplyHotkey, handleReapplyShortcut);
 
-    // Check if hotkey is registered
     console.log(`${primaryHotkey} registered:`, globalShortcut.isRegistered(primaryHotkey));
+    console.log(`${reapplyHotkey} registered:`, globalShortcut.isRegistered(reapplyHotkey));
 
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) {
@@ -370,6 +470,9 @@ ipcMain.handle('trigger-action', async (event, actionLabel, prompt) => {
     console.log(`[Timing] Starting action: ${actionLabel}`);
 
     try {
+        // Save prompt for reapply
+        lastActionPrompt = prompt;
+
         // REMOVED: mainWindow?.hide(); // We keep it open for loading state
 
         const clipStart = performance.now();
@@ -436,45 +539,7 @@ ipcMain.on('close-window', () => {
 });
 ipcMain.handle('save-content-to-file', async (event, content, extension = 'md') => {
     try {
-        let outputDir = store.get('outputDirectory');
-        if (!outputDir) {
-            outputDir = path.join(app.getPath('documents'), 'Tactio Output');
-        }
-
-        if (!fs.existsSync(outputDir)) {
-            fs.mkdirSync(outputDir, { recursive: true });
-        }
-
-        // Try to infer filename
-        let filename = '';
-        try {
-            // Generate filename
-            const namePrompt = "Generate a very short, concise filename (max 5 words, kebab-case) for the following text. Do not include markdown formatting or extension. Just the string.";
-            const inferredName = await executeLLM(namePrompt, content.substring(0, 1000)); // Limit context for speed
-
-            // Sanitize filename
-            filename = inferredName.replace(/[^a-z0-9\-_]/gi, '').trim();
-            if (filename.length > 50) filename = filename.substring(0, 50);
-        } catch (e) {
-            console.log("Failed to infer filename, using timestamp", e);
-        }
-
-        if (!filename || filename.length < 3) {
-            const now = new Date();
-            const timestamp = now.toISOString().replace(/T/, '_').replace(/\..+/, '').replace(/:/g, '-');
-            filename = `tactio_${timestamp}`;
-        }
-
-        // Avoid duplicates
-        let fullPath = path.join(outputDir, `${filename}.${extension}`);
-        let counter = 1;
-        while (fs.existsSync(fullPath)) {
-            fullPath = path.join(outputDir, `${filename}_${counter}.${extension}`);
-            counter++;
-        }
-
-        fs.writeFileSync(fullPath, content, 'utf8');
-        return fullPath;
+        return await saveContentToFile(content, extension);
     } catch (error: any) {
         console.error('Failed to save file:', error);
         throw new Error(`Failed to save file: ${error.message}`);
