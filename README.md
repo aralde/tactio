@@ -13,6 +13,8 @@
   * **Groq**: incredibly fast inference speeds.
 * **Customizable Actions**: Define your own quick actions (e.g., "Summarize", "Fix Grammar", "Translate") in `config.json`.
 * **One-Click Paste**: Automatically pastes the transformed text back into your active application.
+* **History**: Keep track of your transformations for easy re-use.
+* **Export/Import**: Save and load your custom actions for easy sharing.
 
 ## 🛠️ Prerequisites
 

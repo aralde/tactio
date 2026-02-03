@@ -142,6 +142,7 @@ function initializeLLM() {
     let apiKey = '';
     if (service === 'GEMINI') apiKey = store.get('geminiApiKey') || process.env.GEMINI_API_KEY;
     else if (service === 'OPENROUTER') apiKey = store.get('openRouterApiKey') || process.env.OPENROUTER_API_KEY;
+    else if (service === 'OPENAI') apiKey = store.get('openaiApiKey') || process.env.OPENAI_API_KEY;
     else if (service === 'GROQ') apiKey = store.get('groqApiKey') || process.env.GROQ_API_KEY; // New Groq support
 
     // Fallback to legacy 'apiKey' if still present (though migration should handle it)
@@ -159,6 +160,8 @@ function initializeLLM() {
         }
     } else if (service === 'OPENROUTER') {
         // OpenRouter doesn't need SDK init here, handled in execute
+    } else if (service === 'OPENAI') {
+        // OpenAI handled via fetch in execute
     } else if (service === 'GROQ') {
         // Groq handled via fetch in execute
     }
@@ -166,8 +169,8 @@ function initializeLLM() {
 
 function createWindow() {
     mainWindow = new BrowserWindow({
-        width: 300,
-        height: 400,
+        width: 400,
+        height: 660,
         frame: false, // Floating UI style
         alwaysOnTop: true,
         skipTaskbar: true,
@@ -218,6 +221,7 @@ async function executeLLM(prompt: string, text: string): Promise<string> {
     let apiKey = '';
     if (service === 'GEMINI') apiKey = store.get('geminiApiKey') || process.env.GEMINI_API_KEY;
     else if (service === 'OPENROUTER') apiKey = store.get('openRouterApiKey') || process.env.OPENROUTER_API_KEY;
+    else if (service === 'OPENAI') apiKey = store.get('openaiApiKey') || process.env.OPENAI_API_KEY;
     else if (service === 'GROQ') apiKey = store.get('groqApiKey') || process.env.GROQ_API_KEY;
 
     // Fallback
@@ -301,6 +305,36 @@ async function executeLLM(prompt: string, text: string): Promise<string> {
         } catch (error: any) {
             console.error("Groq API Error:", error);
             throw new Error(`Groq Failed: ${error.message || 'Unknown error'}`);
+        }
+    } else if (service === 'OPENAI') {
+        if (!apiKey) throw new Error("OpenAI API Key missing. Please configure settings.");
+
+        try {
+            const response = await fetch("https://api.openai.com/v1/chat/completions", {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${apiKey}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    "model": modelName,
+                    "messages": [
+                        { "role": "user", "content": fullPrompt }
+                    ]
+                })
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`OpenAI Error ${response.status}: ${errorText}`);
+            }
+
+            const data = await response.json();
+            return data.choices?.[0]?.message?.content || "No response content";
+
+        } catch (error: any) {
+            console.error("OpenAI API Error:", error);
+            throw new Error(`OpenAI Failed: ${error.message || 'Unknown error'}`);
         }
     } else {
         throw new Error(`Unknown LLM Service: ${service}`);
@@ -463,6 +497,7 @@ ipcMain.handle('get-settings', () => {
         // Return specific keys
         geminiApiKey: store.get('geminiApiKey') || '',
         openRouterApiKey: store.get('openRouterApiKey') || '',
+        openaiApiKey: store.get('openaiApiKey') || '',
         groqApiKey: store.get('groqApiKey') || '',
         // Legacy support
         apiKey: store.get('apiKey') || '',
@@ -470,7 +505,6 @@ ipcMain.handle('get-settings', () => {
         outputMode: store.get('outputMode') || 'paste',
         outputDirectory: store.get('outputDirectory') || path.join(app.getPath('documents'), 'Tactio Output'),
 
-        onlyFreeModels: store.get('onlyFreeModels') || false,
         promptVariables: store.get('promptVariables') || [],
         generateMetadata: store.get('generateMetadata') !== false // Default true
     };
@@ -482,6 +516,7 @@ ipcMain.handle('save-settings', (event, newSettings) => {
     // Set specific keys if provided
     if (newSettings.geminiApiKey !== undefined) store.set('geminiApiKey', newSettings.geminiApiKey);
     if (newSettings.openRouterApiKey !== undefined) store.set('openRouterApiKey', newSettings.openRouterApiKey);
+    if (newSettings.openaiApiKey !== undefined) store.set('openaiApiKey', newSettings.openaiApiKey);
     if (newSettings.groqApiKey !== undefined) store.set('groqApiKey', newSettings.groqApiKey);
 
     // If generic apiKey provided (legacy frontend?), try to map it to current service?
@@ -499,7 +534,6 @@ ipcMain.handle('save-settings', (event, newSettings) => {
     if (newSettings.outputDirectory !== undefined) store.set('outputDirectory', newSettings.outputDirectory);
     if (newSettings.actions !== undefined) store.set('actions', newSettings.actions);
 
-    if (newSettings.onlyFreeModels !== undefined) store.set('onlyFreeModels', newSettings.onlyFreeModels);
     if (newSettings.promptVariables !== undefined) store.set('promptVariables', newSettings.promptVariables);
     if (newSettings.generateMetadata !== undefined) store.set('generateMetadata', newSettings.generateMetadata);
 
@@ -564,6 +598,22 @@ ipcMain.handle('get-models', async (event, service, apiKey) => {
             })).sort((a: any, b: any) => a.id.localeCompare(b.id));
         } catch (e) {
             console.error("Failed to fetch Groq models:", e);
+            return [];
+        }
+    } else if (service === 'OPENAI') {
+        if (!apiKey) return [];
+        try {
+            const response = await fetch("https://api.openai.com/v1/models", {
+                headers: { "Authorization": `Bearer ${apiKey}` }
+            });
+            const data = await response.json();
+            return data.data.map((m: any) => ({
+                id: m.id,
+                name: m.id, // OpenAI uses id as name
+                // No context info in this list endpoint typically
+            })).sort((a: any, b: any) => a.id.localeCompare(b.id));
+        } catch (e) {
+            console.error("Failed to fetch OpenAI models:", e);
             return [];
         }
     }
@@ -660,6 +710,16 @@ ipcMain.handle('toggle-pin', (event) => {
 ipcMain.on('close-window', () => {
     mainWindow?.hide();
 });
+
+ipcMain.handle('copy-to-clipboard', async (event, text) => {
+    try {
+        clipboard.writeText(text);
+        return true;
+    } catch (error) {
+        console.error('Failed to write to clipboard:', error);
+        return false;
+    }
+});
 ipcMain.handle('save-content-to-file', async (event, content, extension = 'md') => {
     try {
         return await saveContentToFile(content, extension);
@@ -692,3 +752,49 @@ ipcMain.handle('select-output-directory', async () => {
     }
     return result.filePaths[0];
 });
+
+ipcMain.handle('export-actions', async () => {
+    if (!mainWindow) return false;
+    const result = await dialog.showSaveDialog(mainWindow, {
+        title: 'Export Actions',
+        defaultPath: 'tactio-actions.zip',
+        filters: [{ name: 'Zip Files', extensions: ['zip'] }]
+    });
+
+    if (result.canceled || !result.filePath) return false;
+
+    try {
+        const zipBase64 = store.exportActions();
+        if (!zipBase64) return false;
+
+        fs.writeFileSync(result.filePath, Buffer.from(zipBase64, 'base64'));
+        return true;
+    } catch (e) {
+        console.error('Export failed', e);
+        throw e;
+    }
+});
+
+ipcMain.handle('import-actions', async () => {
+    if (!mainWindow) return false;
+    const result = await dialog.showOpenDialog(mainWindow, {
+        title: 'Import Actions',
+        filters: [{ name: 'Zip Files', extensions: ['zip'] }],
+        properties: ['openFile']
+    });
+
+    if (result.canceled || result.filePaths.length === 0) return false;
+
+    try {
+        const content = fs.readFileSync(result.filePaths[0], 'base64');
+        store.importActions(content);
+
+        // Refresh config for renderer
+        mainWindow.webContents.send('config-update', store.getAll());
+        return true;
+    } catch (e) {
+        console.error('Import failed', e);
+        throw e;
+    }
+});
+

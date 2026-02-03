@@ -52,6 +52,7 @@
             <select id="service-select">
                 <option value="GEMINI">Google Gemini</option>
                 <option value="OPENROUTER">OpenRouter</option>
+                <option value="OPENAI">OpenAI</option>
                 <option value="GROQ">Groq</option>
             </select>
 
@@ -60,10 +61,8 @@
 
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
                 <label for="model-select" style="margin: 0;">Model:</label>
-                <div id="free-models-container" style="display: flex; align-items: center;">
-                    <input type="checkbox" id="only-free-models-check" style="margin-right: 4px; margin-bottom: 0;">
-                    <label for="only-free-models-check" style="margin: 0; font-size: 0.8em; cursor: pointer; white-space: nowrap; opacity: 0.9;">Only Free Models</label>
-                </div>
+                <input type="text" id="model-search-input" placeholder="Search models..." style="margin-right: 4px; padding: 2px 5px; font-size: 0.8em; width: 120px;">
+
             </div>
             <select id="model-select">
                 <option value="" disabled selected>Select a Model</option>
@@ -78,6 +77,14 @@
             <div style="margin-top: 10px; display: flex; align-items: center;">
                  <input type="checkbox" id="generate-metadata-check" style="margin-right: 8px;">
                  <label for="generate-metadata-check" style="margin: 0; cursor: pointer;">Generate AI Metadata (Filename, Summary, Tags)</label>
+            </div>
+
+            <div style="margin-top: 15px; border-top: 1px solid #444; padding-top: 10px;">
+                <label style="margin-bottom: 5px;">Manage Actions:</label>
+                <div style="display: flex; gap: 10px;">
+                    <button id="import-actions-btn" style="flex: 1; padding: 5px;">Import (Zip)</button>
+                    <button id="export-actions-btn" style="flex: 1; padding: 5px;">Export (Zip)</button>
+                </div>
             </div>
 
             <div class="modal-actions">
