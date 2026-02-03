@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, clipboard } from 'electron';
 
 contextBridge.exposeInMainWorld('api', {
     // Send an action to the main process
@@ -15,5 +15,8 @@ contextBridge.exposeInMainWorld('api', {
     closeWindow: () => ipcRenderer.send('close-window'),
     saveContentToFile: (content: string, extension: string) => ipcRenderer.invoke('save-content-to-file', content, extension),
     openOutputFolder: () => ipcRenderer.invoke('open-output-folder'),
-    selectOutputDirectory: () => ipcRenderer.invoke('select-output-directory')
+    selectOutputDirectory: () => ipcRenderer.invoke('select-output-directory'),
+    exportActions: () => ipcRenderer.invoke('export-actions'),
+    importActions: () => ipcRenderer.invoke('import-actions'),
+    copyToClipboard: (text: string) => ipcRenderer.invoke('copy-to-clipboard', text)
 });

@@ -2,23 +2,6 @@
     "service": "GROQ",
     "apiKey": "",
     "model": "llama-3.1-8b-instant",
-    "actions": [
-        {
-            "label": "Summarize",
-            "icon": "📝",
-            "prompt": "Summarize the following text concisely (dont any additional info or formatting):"
-        },
-        {
-            "label": "Translate to Spanish",
-            "icon": "🇪🇸",
-            "prompt": "Translate the following text to Spanish (dont any additional info or formatting):"
-        },
-        {
-            "label": "Translate to English",
-            "icon": "asda",
-            "prompt": "Translate the following text to English (dont any additional info or formatting):"
-        }
-    ],
     "promptVariables": [
         {
             "key": "tone",
@@ -46,6 +29,5 @@
     ],
     "outputDirectory": "T:\\users\\arideibe\\Documents\\Tactio Output",
     "outputMode": "paste",
-    "onlyFreeModels": false,
     "generateMetadata": true
 }

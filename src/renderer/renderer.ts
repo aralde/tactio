@@ -12,6 +12,9 @@ interface WindowAPI {
     saveContentToFile: (content: string, extension?: string) => Promise<string>;
     openOutputFolder: () => Promise<void>;
     selectOutputDirectory: () => Promise<string | null>;
+    exportActions: () => Promise<boolean>;
+    importActions: () => Promise<boolean>;
+    copyToClipboard: (text: string) => Promise<boolean>;
 }
 
 interface Window {
@@ -38,8 +41,9 @@ const saveSettingsBtn = document.getElementById('save-settings-btn') as HTMLButt
 const cancelSettingsBtn = document.getElementById('cancel-settings-btn') as HTMLButtonElement;
 
 // New Checkbox
-const onlyFreeModelsCheck = document.getElementById('only-free-models-check') as HTMLInputElement;
-const freeModelsContainer = document.getElementById('free-models-container') as HTMLDivElement;
+const modelSearchInput = document.getElementById('model-search-input') as HTMLInputElement;
+// const onlyFreeModelsCheck = document.getElementById('only-free-models-check') as HTMLInputElement; // Removed
+// const freeModelsContainer = document.getElementById('free-models-container') as HTMLDivElement; // Removed
 
 const modeToggle = document.getElementById('mode-toggle') as HTMLDivElement;
 const openFolderBtn = document.getElementById('open-folder-btn') as HTMLButtonElement;
@@ -48,14 +52,18 @@ const toggleOptions = document.querySelectorAll('.toggle-option');
 let currentOutputMode = 'paste'; // 'paste' | 'file'
 
 const clipboardHistory: string[] = [];
-const MAX_HISTORY = 3;
+const MAX_HISTORY = 20; // Increased history size
 let currentConfig: any = null;
+let activeClipboardText = '';
 
 window.api.onConfigUpdate((data: any) => {
     // Check if data is the new structure { config, clipboardText } or just config (legacy safety)
     const config = data.config || data;
     currentConfig = config;
     const clipboardText = data.clipboardText || '';
+    if (clipboardText) {
+        activeClipboardText = clipboardText;
+    }
 
     renderActions(config.actions);
     // renderVariables(config.promptVariables); // REMOVED
@@ -150,13 +158,14 @@ saveSettingsBtn.onclick = async () => {
         // Send all keys back (modified or original)
         geminiApiKey: formSettings.geminiApiKey,
         openRouterApiKey: formSettings.openRouterApiKey,
+        openaiApiKey: formSettings.openaiApiKey,
         groqApiKey: formSettings.groqApiKey,
         // Legacy fallback - keeping it consistent with current service just in case
         apiKey: apiKeyInput.value,
 
         model: modelSelect.value,
         outputDirectory: outputDirInput.value,
-        onlyFreeModels: onlyFreeModelsCheck.checked,
+        // onlyFreeModels: onlyFreeModelsCheck.checked, // Removed
         generateMetadata: generateMetadataCheck.checked
     };
     await window.api.saveSettings(newSettings);
@@ -190,9 +199,9 @@ apiKeyInput.oninput = () => {
 }
 
 apiKeyInput.onblur = async () => {
-    // Refresh models when API key changes (needed for OpenRouter/Groq)
+    // Refresh models when API key changes (needed for OpenRouter/Groq/OpenAI)
     const service = serviceSelect.value;
-    if (service === 'OPENROUTER' || service === 'GROQ') {
+    if (service === 'OPENROUTER' || service === 'GROQ' || service === 'OPENAI') {
         updateModelList();
     }
 };
@@ -200,6 +209,7 @@ apiKeyInput.onblur = async () => {
 function getKeyForService(service: string) {
     if (service === 'GEMINI') return formSettings.geminiApiKey || '';
     if (service === 'OPENROUTER') return formSettings.openRouterApiKey || '';
+    if (service === 'OPENAI') return formSettings.openaiApiKey || '';
     if (service === 'GROQ') return formSettings.groqApiKey || '';
     return '';
 }
@@ -207,6 +217,7 @@ function getKeyForService(service: string) {
 function updateKeyInSettings(service: string, key: string) {
     if (service === 'GEMINI') formSettings.geminiApiKey = key;
     else if (service === 'OPENROUTER') formSettings.openRouterApiKey = key;
+    else if (service === 'OPENAI') formSettings.openaiApiKey = key;
     else if (service === 'GROQ') formSettings.groqApiKey = key;
 }
 
@@ -217,7 +228,7 @@ async function populateSettingsForm(settings: any) {
     // Fallback for migration: if specific key is empty but 'apiKey' (legacy) exists AND match service?
     // handled in store.ts migration, so we should be good.
 
-    onlyFreeModelsCheck.checked = settings.onlyFreeModels || false;
+    // onlyFreeModelsCheck.checked = settings.onlyFreeModels || false; // Removed
 
     // Refresh model list with the current filter
     await updateModelList(settings.model);
@@ -228,8 +239,8 @@ async function populateSettingsForm(settings: any) {
 
 const generateMetadataCheck = document.getElementById('generate-metadata-check') as HTMLInputElement;
 
-if (onlyFreeModelsCheck) {
-    onlyFreeModelsCheck.onchange = () => {
+if (modelSearchInput) {
+    modelSearchInput.oninput = () => {
         updateModelList(modelSelect.value); // Keep current selection if possible
     };
 }
@@ -243,6 +254,26 @@ if (selectDirBtn) {
     };
 }
 
+const importActionsBtn = document.getElementById('import-actions-btn') as HTMLButtonElement;
+const exportActionsBtn = document.getElementById('export-actions-btn') as HTMLButtonElement;
+
+if (importActionsBtn) {
+    importActionsBtn.onclick = async () => {
+        const success = await window.api.importActions();
+        if (success) {
+            alert('Actions imported successfully!');
+            // Refresh logic handled by onConfigUpdate
+        }
+    };
+}
+
+if (exportActionsBtn) {
+    exportActionsBtn.onclick = async () => {
+        const success = await window.api.exportActions();
+        if (success) alert('Actions exported successfully!');
+    };
+}
+
 async function updateModelList(selectedModelId: string | null = null) {
     const service = serviceSelect.value;
     const apiKey = apiKeyInput.value;
@@ -250,11 +281,14 @@ async function updateModelList(selectedModelId: string | null = null) {
     modelSelect.innerHTML = '<option>Loading...</option>';
     modelSelect.disabled = true;
 
-    // Toggle Free Models Checkbox
-    if (service === 'GROQ' || service === 'GEMINI') {
-        freeModelsContainer.classList.add('hidden');
-    } else {
-        freeModelsContainer.classList.remove('hidden');
+    // Toggle Search Input Visibility (Optional: Hide if no models? No, keep it.)
+    if (modelSearchInput) {
+        if (service === 'GEMINI' || service === 'GROQ' || service === 'OPENROUTER' || service === 'OPENAI') {
+            modelSearchInput.disabled = false;
+            // If we wanted to hide/show, we could.
+        } else {
+            // modelSearchInput.classList.add('hidden');
+        }
     }
 
     try {
@@ -266,21 +300,17 @@ async function updateModelList(selectedModelId: string | null = null) {
             option.text = "No models found (Check API Key)";
             modelSelect.add(option);
         } else {
-            // Filter if checkbox is checked
-            const onlyFree = onlyFreeModelsCheck.checked;
+            // Filter by search text
+            const searchText = modelSearchInput ? modelSearchInput.value.toLowerCase() : '';
 
             const filteredModels = models.filter(m => {
-                if (!onlyFree) return true;
-                if (!m.pricing) return false; // If no pricing info, assume not free to be safe, or maybe it's unknown.
-                const prompt = parseFloat(m.pricing.prompt);
-                const completion = parseFloat(m.pricing.completion);
-                // Check if effectively free
-                return prompt === 0 && completion === 0;
+                if (!searchText) return true;
+                return (m.name || m.id).toLowerCase().includes(searchText);
             });
 
-            if (filteredModels.length === 0 && onlyFree) {
+            if (filteredModels.length === 0 && searchText) {
                 const option = document.createElement('option');
-                option.text = "No free models found";
+                option.text = `No models match "${searchText}"`;
                 modelSelect.add(option);
             } else {
                 filteredModels.forEach((m: any) => {
@@ -297,6 +327,9 @@ async function updateModelList(selectedModelId: string | null = null) {
         modelSelect.disabled = false;
         // Restore selection if exists in new list
         if (selectedModelId) {
+            // Check if selected model is in the current filtered list?
+            // If strictly filtering, it might be gone. But usually we want to keep it if valid?
+            // Or just try to set it.
             modelSelect.value = selectedModelId;
         }
     }
@@ -340,31 +373,74 @@ function renderHistory() {
     clipboardHistory.forEach((text, index) => {
         const item = document.createElement('div');
         item.className = 'history-item';
+        if (text === activeClipboardText) {
+            item.classList.add('active');
+        }
 
         // Truncate logic
         const previewText = text.length > 200 ? text.substring(0, 200) + '...' : text;
-        item.textContent = previewText;
-        item.title = "Click to Output (Paste or Save)";
 
+        // Content container
+        const content = document.createElement('div');
+        content.className = 'history-content';
+        content.textContent = previewText;
+        item.appendChild(content);
+
+        // Actions container (Paste button)
+        const actions = document.createElement('div');
+        actions.className = 'history-actions';
+
+        const pasteBtn = document.createElement('button');
+        pasteBtn.className = 'icon-btn'; // Re-use icon-btn class
+        pasteBtn.innerHTML = '📋'; // Clipboard icon or similar
+        pasteBtn.title = 'Paste / Output';
+        pasteBtn.onclick = (e) => {
+            e.stopPropagation(); // Prevent selection trigger
+            performPaste(text);
+        };
+        actions.appendChild(pasteBtn);
+        item.appendChild(actions);
+
+        item.title = "Click to Select, Double-Click to Paste";
+
+        // Click -> Select
         item.onclick = async () => {
-            // Visual feedback
-            item.style.borderColor = '#0078d4';
+            // Optimistic update
+            activeClipboardText = text;
+            renderHistory();
 
-            if (currentOutputMode === 'file') {
-                try {
-                    const filePath = await window.api.saveContentToFile(text, 'md');
-                    alert(`Saved to: ${filePath}`);
-                } catch (e) {
-                    alert('Failed to save file: ' + e);
-                }
-            } else {
-                await window.api.pasteResult(text);
+            try {
+                await window.api.copyToClipboard(text);
+            } catch (e) {
+                console.error("Failed to copy to clipboard", e);
             }
-            showMain();
+        };
+
+        // Double Click -> Paste
+        item.ondblclick = () => {
+            performPaste(text);
         };
 
         historyList.appendChild(item);
     });
+}
+
+async function performPaste(text: string) {
+    // Visual feedback handled by renderHistory update usually, 
+    // but here we just execute.
+    if (currentOutputMode === 'file') {
+        try {
+            const filePath = await window.api.saveContentToFile(text, 'md');
+            alert(`Saved to: ${filePath}`);
+        } catch (e) {
+            alert('Failed to save file: ' + e);
+        }
+    } else {
+        await window.api.pasteResult(text);
+    }
+    // Update active text to what was pasted?
+    activeClipboardText = text;
+    showMain();
 }
 
 function renderActions(actions: any[]) {
@@ -373,25 +449,23 @@ function renderActions(actions: any[]) {
     if (!actions || actions.length === 0) {
         const msg = document.createElement('div');
         msg.className = 'message';
-        msg.textContent = 'No actions defined in config.json';
+        msg.textContent = 'No actions found. Add one below.';
         actionsList.appendChild(msg);
-        return;
+    } else {
+        actions.forEach((action, index) => {
+            const button = document.createElement('button');
+            button.className = 'action-btn';
+            button.textContent = action.icon || action.label.substring(0, 2);
+
+            const shortcutHint = index < 9 ? ` (Alt+${index + 1})` : '';
+            button.title = action.label + shortcutHint;
+
+            button.onclick = () => handleAction(action.label, action.prompt, action.style);
+            actionsList.appendChild(button);
+        });
     }
 
-    actions.forEach((action, index) => {
-        const button = document.createElement('button');
-        button.className = 'action-btn';
-        // Use icon if available, otherwise fallback to first letter of labels
-        button.textContent = action.icon || action.label.substring(0, 2);
-
-        const shortcutHint = index < 9 ? ` (Alt+${index + 1})` : '';
-        button.title = action.label + shortcutHint; // Tooltip content
-
-        button.onclick = () => handleAction(action.label, action.prompt, action.style);
-        actionsList.appendChild(button);
-    });
-
-    // Add + Button
+    // Add + Button (Always visible)
     const addBtn = document.createElement('button');
     addBtn.className = 'action-btn';
     addBtn.textContent = '+';

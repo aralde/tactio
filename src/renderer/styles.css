@@ -151,15 +151,65 @@ body.loading * {
     cursor: pointer;
     transition: background-color 0.2s, border-color 0.2s;
     
-    /* Truncation and sizing */
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start; /* Align top so button stays up if tall? Or center? Top is better for text */
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.history-item.active {
+    border-color: #0078d4;
+    background: #333;
+    box-shadow: inset 3px 0 0 #0078d4; /* Left border indicator inside */
+    /* border-left is already handled by :first-child potentially, so override or enhance */
+}
+
+/* Remove :first-child specific border if we use .active */
+.history-item:first-child {
+    /* border-left: 2px solid #0078d4; Remove this as we use .active */
+    border-left: 1px solid #333; 
+}
+.history-item:first-child.active {
+    border-left: 1px solid #0078d4; /* or whatever standard active border is */
+}    
+
+.history-content {
+    flex: 1;
+    /* Truncation and sizing moved here */
     max-height: 80px; /* Limit individual item height */
     overflow: hidden;
-    position: relative;
     word-break: break-word;
     
     /* Fade out long text */
     mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
     -webkit-mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+}
+
+.history-actions {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    opacity: 0.4;
+    transition: opacity 0.2s;
+}
+
+.history-item:hover .history-actions,
+.history-item.active .history-actions {
+    opacity: 1;
+}
+
+/* Reuse icon-btn but for history */
+.history-actions .icon-btn {
+    font-size: 16px;
+    padding: 6px;
+    background: #444;
+    border-radius: 4px;
+    color: white;
+}
+.history-actions .icon-btn:hover {
+    background: #0078d4;
 }
 
 .history-item:hover {
@@ -172,10 +222,7 @@ body.loading * {
     border-color: #0078d4;
 }
 
-/* Most recent item could be slightly distinct */
-.history-item:first-child {
-    border-left: 2px solid #0078d4;
-}
+/* Active State handled above */
 
 /* Icon Buttons */
 .action-btn {
