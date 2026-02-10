@@ -45,6 +45,7 @@
     "@google/generative-ai": "^0.24.1",
     "adm-zip": "^0.5.16",
     "dotenv": "^17.2.3",
+    "gray-matter": "^4.0.3",
     "robotjs": "^0.6.0"
   }
 }

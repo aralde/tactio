@@ -213,6 +213,20 @@ function showWindowAtCursor(clipboardText: string = '') {
 }
 
 
+// Helper: Substitute variables in prompt
+function substituteVariables(prompt: string): string {
+    const variables = store.get('promptVariables') || [];
+    let finalPrompt = prompt;
+    variables.forEach((v: any) => {
+        if (v.key && v.selected) {
+            // Case-insensitive replacement for {{key}}
+            const regex = new RegExp(`{{${v.key}}}`, 'gi');
+            finalPrompt = finalPrompt.replace(regex, v.selected);
+        }
+    });
+    return finalPrompt;
+}
+
 async function executeLLM(prompt: string, text: string): Promise<string> {
     const fullPrompt = `${prompt}\n\n"${text}"`;
     const service = store.get('service') || process.env.LLM_SERVICE || 'GEMINI';
@@ -499,6 +513,13 @@ ipcMain.handle('get-settings', () => {
         openRouterApiKey: store.get('openRouterApiKey') || '',
         openaiApiKey: store.get('openaiApiKey') || '',
         groqApiKey: store.get('groqApiKey') || '',
+
+        // Provider-specific models
+        geminiModel: store.get('geminiModel') || '',
+        openRouterModel: store.get('openRouterModel') || '',
+        openaiModel: store.get('openaiModel') || '',
+        groqModel: store.get('groqModel') || '',
+
         // Legacy support
         apiKey: store.get('apiKey') || '',
         model: store.get('model') || 'gemini-2.0-flash-lite-001',
@@ -518,6 +539,12 @@ ipcMain.handle('save-settings', (event, newSettings) => {
     if (newSettings.openRouterApiKey !== undefined) store.set('openRouterApiKey', newSettings.openRouterApiKey);
     if (newSettings.openaiApiKey !== undefined) store.set('openaiApiKey', newSettings.openaiApiKey);
     if (newSettings.groqApiKey !== undefined) store.set('groqApiKey', newSettings.groqApiKey);
+
+    // Save provider-specific models
+    if (newSettings.geminiModel !== undefined) store.set('geminiModel', newSettings.geminiModel);
+    if (newSettings.openRouterModel !== undefined) store.set('openRouterModel', newSettings.openRouterModel);
+    if (newSettings.openaiModel !== undefined) store.set('openaiModel', newSettings.openaiModel);
+    if (newSettings.groqModel !== undefined) store.set('groqModel', newSettings.groqModel);
 
     // If generic apiKey provided (legacy frontend?), try to map it to current service?
     // Better to rely on frontend sending specific keys now. 
@@ -640,7 +667,14 @@ ipcMain.handle('trigger-action', async (event, actionLabel, prompt, style = 'nor
         else if (style === 'concise') systemInstruction = "System: Respond strictly with the requested information. Do not add any introductory or concluding remarks. No formatting unless requested.\n";
 
         const effectivePrompt = systemInstruction ? `${systemInstruction}\n${prompt}` : prompt;
-        lastActionPrompt = effectivePrompt;
+        // Apply variable substitution (e.g. {{tone}}, {{language}})
+        const finalPrompt = substituteVariables(effectivePrompt);
+
+        // Save original prompt + style? Or effective one?
+        // Reapply usually wants the same OUTCOME, so saving the substituted one is safer 
+        // if variables change later? Or do we want dynamic reapply?
+        // Let's save the *final* prompt for consistency.
+        lastActionPrompt = finalPrompt;
 
 
         // REMOVED: mainWindow?.hide(); // We keep it open for loading state
@@ -654,11 +688,10 @@ ipcMain.handle('trigger-action', async (event, actionLabel, prompt, style = 'nor
 
         console.log(`Executing action: ${actionLabel}`);
 
-        // Substitute Variables (REMOVED)
-        // const finalPrompt = substituteVariables(prompt);
+        // Substitute Variables (Processed above as finalPrompt)
 
         const geminiStart = performance.now();
-        const result = await executeLLM(effectivePrompt, text);
+        const result = await executeLLM(finalPrompt, text);
         const geminiEnd = performance.now();
         console.log(`[Timing] Gemini execution: ${(geminiEnd - geminiStart).toFixed(2)}ms`);
 

@@ -1,85 +1,85 @@
-# Tactio - Análisis Funcional
+# Tactio – Functional Analysis
 
-Tactio es una herramienta de productividad de escritorio basada en Electron diseñada para optimizar el flujo de trabajo "Copiar, Transformar, Pegar" utilizando Modelos de Lenguaje Grande (LLMs). Actúa como una utilidad en segundo plano que se activa globalmente para procesar texto seleccionado.
+Tactio is a desktop productivity tool built on Electron designed to optimise the “Copy, Transform, Paste” workflow using Large Language Models (LLMs). It works as a background utility that is globally activated to process selected text.
 
-## Arquitectura Técnica
+## Technical Architecture
 
-* **Runtime**: Electron (v28), Node.js.
-* **Lenguaje**: TypeScript (v5).
-* **Frontend**: HTML/CSS/TypeScript Vanilla (sin frameworks pesados como React/Vue/Angular).
-* **Backend (Main)**: IPC, gestión de ventanas, integración con sistema operativo.
-* **Almacenamiento**: Local mediante `store.ts` (configuración JSON) y `safeStorage` de Electron para claves API.
+* **Runtime**: Electron (v28), Node.js.  
+* **Language**: TypeScript (v5).  
+* **Frontend**: HTML/CSS/Vanilla TypeScript (no heavy frameworks like React/Vue/Angular).  
+* **Backend (Main)**: IPC, window management, OS integration.  
+* **Storage**: Local via `store.ts` (JSON config) and Electron’s `safeStorage` for API keys.
 
-## Funcionalidades Principales
+## Main Features
 
-### 1. Activación Global y Captura de Contexto
+### 1. Global Activation and Context Capture
 
-* **Hotkey Global**: `Ctrl+Shift+G` (Commando+Shift+G en Mac).
-* **Flujo de Activación**:
-    1. Al pulsar el atajo, la aplicación simula `Ctrl+C` para copiar el texto seleccionado.
-    2. Lee el contenido del portapapeles.
-    3. Abre una ventana flotante ("tipo Spotlight") cerca de la posición del cursor.
-    4. Muestra el texto capturado (o un historial reciente) listo para ser procesado.
+* **Global Hotkey**: `Ctrl+Shift+G` (Command+Shift+G on Mac).  
+* **Activation Flow**:  
+    1. When the shortcut is pressed, the app simulates `Ctrl+C` to copy the selected text.  
+    2. Reads the clipboard content.  
+    3. Opens a floating window (“Spotlight‑style”) near the cursor position.  
+    4. Shows the captured text (or a recent history) ready to be processed.
 
-### 2. Procesamiento con IA (LLMs)
+### 2. AI Processing (LLMs)
 
-Tactio soporta múltiples proveedores de IA para transformar el texto:
+Tactio supports multiple AI providers to transform the text:
 
-* **Google Gemini**:
-  * Usa el SDK oficial `@google/generative-ai`.
-  * Modelos soportados (hardcoded): `gemini-2.0-flash-lite-001`, `gemini-1.5-flash`, `gemini-1.5-pro`, `gemini-1.0-pro`.
-* **OpenRouter**:
-  * Usa la API estándar de OpenAI.
-  * Permite acceder a cualquier modelo disponible en OpenRouter.
-  * **Filtrado de Modelos Gratuitos**: Incluye una opción en la configuración para listar solo los modelos gratuitos.
+* **Google Gemini**:  
+  * Uses the official `@google/generative-ai` SDK.  
+  * Supported models (hard‑coded): `gemini-2.0-flash-lite-001`, `gemini-1.5-flash`, `gemini-1.5-pro`, `gemini-1.0-pro`.  
+* **OpenRouter**:  
+  * Uses the standard OpenAI‑compatible API.  
+  * Allows access to any model available on OpenRouter.  
+  * **Free‑Model Filtering**: Includes a setting option to list only free models.
 
-### 3. Sistema de "Acciones" (Prompts)
+### 3. “Actions” System (Prompts)
 
-El núcleo de la funcionalidad reside en las "Acciones" configurables:
+The core functionality resides in configurable “Actions”:
 
-* **Gestor de Prompts**: Interfaz UI para Crear, Editar y Eliminar acciones.
-* **Estructura de una Acción**:
-  * **Etiqueta**: Nombre corto (ej: "Resumir", "Traducir").
-  * **Icono**: Emoji o texto corto (ej: "📝", "🇪🇸").
-  * **Prompt de Sistema**: La instrucción enviada al LLM (ej: "Resume el siguiente texto...").
-* **Botonera Rápida**: Las acciones aparecen como botones en la pantalla principal para un acceso inmediato.
+* **Prompt Manager**: UI to create, edit, and delete actions.  
+* **Action Structure**:  
+  * **Label**: Short name (e.g., “Summarize”, “Translate”).  
+  * **Icon**: Emoji or short text (e.g., “📝”, “🇪🇸”).  
+  * **System Prompt**: The instruction sent to the LLM (e.g., “Summarize the following text…”).  
+* **Quick Button Bar**: Actions appear as buttons on the main screen for immediate access.
 
-### 4. Modos de Salida (Output Modes)
+### 4. Output Modes
 
-El usuario puede elegir qué hacer con el resultado generado por la IA:
+The user can choose what to do with the AI‑generated result:
 
-* **Modo Pegar (📋)**:
-  * Copia el resultado al portapapeles.
-  * Minimiza y oculta la ventana de Tactio.
-  * Simula `Ctrl+V` para pegar automáticamente el texto en la aplicación anterior.
-* **Modo Archivo (💾)**:
-  * Guarda el resultado como un archivo Markdown (`.md`) en un directorio configurado.
-  * Genera nombres de archivo inteligentes usando IA (o timestamp si falla).
-  * Muestra una alerta de confirmación y permite abrir la carpeta de salida.
-  * Mantiene la ventana abierta para seguir trabajando.
+* **Paste Mode (📋)**:  
+  * Copies the result to the clipboard.  
+  * Minimises and hides the Tactio window.  
+  * Simulates `Ctrl+V` to automatically paste the text into the previous application.  
+* **File Mode (💾)**:  
+  * Saves the result as a Markdown file (`.md`) in a configured directory.  
+  * Generates smart file names using AI (or a timestamp if that fails).  
+  * Shows a confirmation alert and allows opening the output folder.  
+  * Keeps the window open for further work.
 
-### 5. Historial y Gestión de Ventana
+### 5. History and Window Management
 
-* **Historial Reciente**: Muestra los últimos 3 resultados procesados con opción a reutilizarlos (volver a pegar o guardar).
-* **Ventana Flotante**:
-  * Diseño "Frameless" (sin bordes del SO).
-  * **Pin (fijar)**: Opción "Always on Top" (`📌`) para evitar que la ventana se oculte al perder el foco.
-  * **Auto-ocultar**: Por defecto, la ventana se oculta al hacer clic fuera de ella (blur).
-  * Indicador visual de redimensionamiento en la esquina inferior derecha.
+* **Recent History**: Shows the last three processed results with an option to reuse them (paste again or save).  
+* **Floating Window**:  
+  * “Frameless” design (no OS borders).  
+  * **Pin**: “Always on Top” option (`📌`) to prevent the window from hiding when it loses focus.  
+  * **Auto‑hide**: By default, the window hides when clicking outside of it (blur).  
+  * Visual resize indicator in the bottom‑right corner.
 
-### 6. Configuración
+### 6. Settings
 
-* Selección de Servicio (Gemini vs OpenRouter).
-* Gestión segura de API Keys.
-* Selección de directorio de salida para archivos.
-* Persistencia de preferencias (Modo de salida, etc.).
+* Service selection (Gemini vs OpenRouter).  
+* Secure management of API keys.  
+* Output directory selection for files.  
+* Persistence of preferences (output mode, etc.).
 
-## Flujo de Usuario Típico
+## Typical User Flow
 
-1. Usuario selecciona texto en cualquier app (navegador, IDE, notas).
-2. Pulsa `Ctrl+Shift+G`.
-3. Aparece Tactio con sus botones de acción (ej: "Explicar Código").
-4. Usuario hace clic en "Explicar Código".
-5. Tactio envía texto + prompt a la IA.
-6. **Si está en modo Pegar**: El texto original se reemplaza por la explicación.
-7. **Si está en modo Archivo**: Se crea un archivo `tactio_explicacion.md` en la carpeta de documentos.
+1. User selects text in any app (browser, IDE, notes).  
+2. Presses `Ctrl+Shift+G`.  
+3. Tactio appears with its action buttons (e.g., “Explain Code”).  
+4. User clicks “Explain Code”.  
+5. Tactio sends the text + prompt to the AI.  
+6. **If in Paste mode**: The original text is replaced by the explanation.  
+7. **If in File mode**: A file `tactio_explanation.md` is created in the documents folder.
