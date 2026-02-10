@@ -51,18 +51,33 @@ const toggleOptions = document.querySelectorAll('.toggle-option');
 
 let currentOutputMode = 'paste'; // 'paste' | 'file'
 
-const clipboardHistory: string[] = [];
+interface HistoryVersion {
+    text: string;
+    label: string;
+    timestamp: number;
+}
+
+interface HistoryItem {
+    id: string;
+    versions: HistoryVersion[];
+    timestamp: number; // Last modified
+}
+
+const clipboardHistory: HistoryItem[] = [];
 const MAX_HISTORY = 20; // Increased history size
 let currentConfig: any = null;
 let activeClipboardText = '';
+let activeHistoryId: string | null = null; // Track which item is currently "active"
 
 window.api.onConfigUpdate((data: any) => {
     // Check if data is the new structure { config, clipboardText } or just config (legacy safety)
     const config = data.config || data;
     currentConfig = config;
     const clipboardText = data.clipboardText || '';
+
+    // Handle incoming clipboard text logic
     if (clipboardText) {
-        activeClipboardText = clipboardText;
+        handleIncomingClipboard(clipboardText);
     }
 
     renderActions(config.actions);
@@ -166,7 +181,13 @@ saveSettingsBtn.onclick = async () => {
         model: modelSelect.value,
         outputDirectory: outputDirInput.value,
         // onlyFreeModels: onlyFreeModelsCheck.checked, // Removed
-        generateMetadata: generateMetadataCheck.checked
+        generateMetadata: generateMetadataCheck.checked,
+
+        // Pass specific model choices explicitly
+        geminiModel: (serviceSelect.value === 'GEMINI') ? modelSelect.value : formSettings.geminiModel,
+        openRouterModel: (serviceSelect.value === 'OPENROUTER') ? modelSelect.value : formSettings.openRouterModel,
+        openaiModel: (serviceSelect.value === 'OPENAI') ? modelSelect.value : formSettings.openaiModel,
+        groqModel: (serviceSelect.value === 'GROQ') ? modelSelect.value : formSettings.groqModel,
     };
     await window.api.saveSettings(newSettings);
     settingsModal.classList.add('hidden');
@@ -190,8 +211,11 @@ serviceSelect.onchange = async () => {
     // Load key for new service
     apiKeyInput.value = getKeyForService(newService);
 
+    // Get preferred model for new service
+    const preferredModel = getModelForService(newService);
+
     // Update models
-    updateModelList();
+    updateModelList(preferredModel);
 };
 
 apiKeyInput.oninput = () => {
@@ -219,6 +243,14 @@ function updateKeyInSettings(service: string, key: string) {
     else if (service === 'OPENROUTER') formSettings.openRouterApiKey = key;
     else if (service === 'OPENAI') formSettings.openaiApiKey = key;
     else if (service === 'GROQ') formSettings.groqApiKey = key;
+}
+
+function getModelForService(service: string) {
+    if (service === 'GEMINI') return formSettings.geminiModel || '';
+    if (service === 'OPENROUTER') return formSettings.openRouterModel || '';
+    if (service === 'OPENAI') return formSettings.openaiModel || '';
+    if (service === 'GROQ') return formSettings.groqModel || '';
+    return '';
 }
 
 async function populateSettingsForm(settings: any) {
@@ -341,87 +373,151 @@ async function updateModelList(selectedModelId: string | null = null) {
 function showInitialState(text: string) {
     if (resultContainer && historyList) {
         resultContainer.classList.remove('hidden');
-        if (text) {
-            addToHistory(text);
-        }
+        // Logic moved to handleIncomingClipboard and renderHistory
         actionsList.classList.remove('disabled-mode');
     }
 }
 
-function addToHistory(text: string) {
-    // 1. Remove if already exists (to move to top)
-    const index = clipboardHistory.indexOf(text);
-    if (index > -1) {
-        clipboardHistory.splice(index, 1);
-    }
+function handleIncomingClipboard(text: string) {
+    activeClipboardText = text;
 
-    // 2. Add to front
-    clipboardHistory.unshift(text);
+    // Check if this text already exists in the "latest version" of any history item
+    const existingItem = clipboardHistory.find(item => {
+        if (item.versions.length > 0) {
+            return item.versions[0].text === text; // Check latest
+        }
+        return false;
+    });
 
-    // 3. Trim
-    if (clipboardHistory.length > MAX_HISTORY) {
-        clipboardHistory.pop();
+    if (existingItem) {
+        // It exists, set it as active and move to top
+        activeHistoryId = existingItem.id;
+
+        // Move to top logic
+        const index = clipboardHistory.indexOf(existingItem);
+        if (index > 0) {
+            clipboardHistory.splice(index, 1);
+            clipboardHistory.unshift(existingItem);
+        }
+        // Update timestamp? Maybe not if it's identical.
+    } else {
+        // create new item
+        const newItem: HistoryItem = {
+            id: generateId(),
+            versions: [{
+                text: text,
+                label: 'Original',
+                timestamp: Date.now()
+            }],
+            timestamp: Date.now()
+        };
+        clipboardHistory.unshift(newItem);
+        activeHistoryId = newItem.id;
+
+        // Trim
+        if (clipboardHistory.length > MAX_HISTORY) {
+            clipboardHistory.pop();
+        }
     }
 
     renderHistory();
+}
+
+
+function generateId() {
+    return Math.random().toString(36).substr(2, 9);
 }
 
 function renderHistory() {
     if (!historyList) return;
     historyList.innerHTML = '';
 
-    clipboardHistory.forEach((text, index) => {
-        const item = document.createElement('div');
-        item.className = 'history-item';
-        if (text === activeClipboardText) {
-            item.classList.add('active');
+    clipboardHistory.forEach((item) => {
+        const itemContainer = document.createElement('div');
+        itemContainer.className = 'history-item';
+
+        if (item.id === activeHistoryId) {
+            itemContainer.classList.add('active');
         }
 
-        // Truncate logic
-        const previewText = text.length > 200 ? text.substring(0, 200) + '...' : text;
+        // Render Versions
+        // We want oldest at bottom? Or newest at top?
+        // Usually newest version at TOP is standard for history stacks.
+        // So versions[0] is newest.
+        item.versions.forEach((version, vIndex) => {
+            const versionDiv = document.createElement('div');
+            versionDiv.className = 'history-version';
 
-        // Content container
-        const content = document.createElement('div');
-        content.className = 'history-content';
-        content.textContent = previewText;
-        item.appendChild(content);
+            // If not the last one (visually bottom, which is oldest in our array structure if we iterate normally?),
+            // let's stick to: versions[0] is LATEST.
 
-        // Actions container (Paste button)
-        const actions = document.createElement('div');
-        actions.className = 'history-actions';
+            // We want to differentiate "Original" vs "Transformations"
+            // The first item in the array (index 0) is the *latest* version.
+            // The last item in the array is the *original*.
 
-        const pasteBtn = document.createElement('button');
-        pasteBtn.className = 'icon-btn'; // Re-use icon-btn class
-        pasteBtn.innerHTML = '📋'; // Clipboard icon or similar
-        pasteBtn.title = 'Paste / Output';
-        pasteBtn.onclick = (e) => {
-            e.stopPropagation(); // Prevent selection trigger
-            performPaste(text);
-        };
-        actions.appendChild(pasteBtn);
-        item.appendChild(actions);
+            const isLatest = vIndex === 0;
+            const isSelected = (item.id === activeHistoryId && activeClipboardText === version.text);
 
-        item.title = "Click to Select, Double-Click to Paste";
-
-        // Click -> Select
-        item.onclick = async () => {
-            // Optimistic update
-            activeClipboardText = text;
-            renderHistory();
-
-            try {
-                await window.api.copyToClipboard(text);
-            } catch (e) {
-                console.error("Failed to copy to clipboard", e);
+            if (isSelected) {
+                versionDiv.classList.add('selected-version');
             }
-        };
 
-        // Double Click -> Paste
-        item.ondblclick = () => {
-            performPaste(text);
-        };
+            // Label
+            const metaDiv = document.createElement('div');
+            metaDiv.className = 'version-meta';
+            const timeString = new Date(version.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            metaDiv.textContent = `${version.label} • ${timeString}`;
+            versionDiv.appendChild(metaDiv);
 
-        historyList.appendChild(item);
+            // Content
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'history-content';
+            const previewText = version.text.length > 150 ? version.text.substring(0, 150) + '...' : version.text;
+            contentDiv.textContent = previewText;
+            versionDiv.appendChild(contentDiv);
+
+            // Click -> Select this specific version to be active text
+            versionDiv.onclick = async (e) => {
+                e.stopPropagation();
+                activeHistoryId = item.id;
+                activeClipboardText = version.text;
+
+                // Copy to clipboard immediately on click?
+                // Per previous logic, yes:
+                try {
+                    await window.api.copyToClipboard(version.text);
+                } catch (e) {
+                    console.error("Failed to copy to clipboard", e);
+                }
+
+                renderHistory(); // Re-render to show selection state
+            };
+
+            // Double Click -> Paste
+            versionDiv.ondblclick = (e) => {
+                e.stopPropagation();
+                performPaste(version.text);
+            };
+
+            // Actions for this version
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'history-actions';
+
+            const pasteBtn = document.createElement('button');
+            pasteBtn.className = 'icon-btn';
+            pasteBtn.innerHTML = '📋';
+            pasteBtn.title = 'Paste / Output';
+            pasteBtn.onclick = (e) => {
+                e.stopPropagation();
+                performPaste(version.text);
+            };
+            actionsDiv.appendChild(pasteBtn);
+
+            versionDiv.appendChild(actionsDiv);
+            itemContainer.appendChild(versionDiv);
+        });
+
+        historyList.appendChild(itemContainer);
     });
 }
 
@@ -488,36 +584,86 @@ async function handleAction(label: string, prompt: string, style?: string) {
 
         if (currentOutputMode === 'file') {
             const filePath = await window.api.saveContentToFile(result, 'md');
-            addToHistory(result); // Store clean text, not the message
+            // If file mode, we might still want to add to version history?
+            // Yes, user probably wants to see it happened.
+            addVersionToActiveItem(result, label);
+
             alert(`Saved to: ${filePath}`);
-            showMain();
+            enableUI(true); // Keep result visible
         } else {
             // Paste mode behavior
-            showResult(result);
+            addVersionToActiveItem(result, label);
+            enableUI(true); // Keep result visible
         }
     } catch (error) {
         console.error('Action failed:', error);
         alert('Action failed: ' + error); // Simple error feedback
-        showMain();
+        enableUI(true); // Show result if partial? or just enable actions
     } finally {
         setLoading(false);
     }
 }
 
+function enableUI(keepResult: boolean = false) {
+    if (actionsList) {
+        actionsList.classList.remove('disabled-mode');
+    }
+    if (resultContainer) {
+        if (keepResult) {
+            resultContainer.classList.remove('hidden');
+        } else {
+            resultContainer.classList.add('hidden');
+        }
+    }
+}
+
+function addVersionToActiveItem(text: string, label: string) {
+    console.log('Adding version:', label, text.substring(0, 20), 'to', activeHistoryId);
+    if (!activeHistoryId) {
+        console.warn('No activeHistoryId found. Creating new item fallback.');
+        // Fallback: Create new item if for some reason we lost track
+        const newItem: HistoryItem = {
+            id: generateId(),
+            versions: [{
+                text: text,
+                label: label,
+                timestamp: Date.now()
+            }],
+            timestamp: Date.now()
+        };
+        clipboardHistory.unshift(newItem);
+        activeHistoryId = newItem.id;
+        renderHistory();
+        return;
+    }
+
+    const item = clipboardHistory.find(i => i.id === activeHistoryId);
+    if (item) {
+        item.versions.unshift({
+            text: text,
+            label: label,
+            timestamp: Date.now()
+        });
+        item.timestamp = Date.now();
+        activeClipboardText = text;
+        renderHistory();
+    } else {
+        console.error('Active history item not found in array:', activeHistoryId);
+    }
+}
+
 function showResult(text: string) {
+    // Deprecated? Or used for pure paste?
+    // If we use it, ensure it doesn't block.
     if (actionsList && resultContainer) {
-        actionsList.classList.add('disabled-mode');
+        // actionsList.classList.add('disabled-mode'); // REMOVED BLOCKING
         resultContainer.classList.remove('hidden');
-        addToHistory(text);
+        // addToHistory(text); // Already handled in handleAction via addVersionToActiveItem
     }
 }
 
 function showMain() {
-    // using global constants
-    if (actionsList && resultContainer) {
-        actionsList.classList.remove('disabled-mode');
-        resultContainer.classList.add('hidden');
-    }
+    enableUI(false);
 }
 
 function setLoading(isLoading: boolean) {
