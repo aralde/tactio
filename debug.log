@@ -1,0 +1,39 @@
+[2026-02-11T15:23:33.648Z] [Main] Process started {"cwd":"T:\\Dev\\personal\\_myProductionGithub\\tactio"}
+[2026-02-11T15:26:06.582Z] [Main] Process started {"cwd":"T:\\Dev\\personal\\_myProductionGithub\\tactio"}
+[2026-02-11T15:26:06.760Z] [Renderer] Renderer process started 
+[2026-02-11T15:26:06.760Z] [Renderer] UIManager initialized 
+[2026-02-11T15:26:06.761Z] [Renderer] SettingsManager initialized 
+[2026-02-11T15:26:06.761Z] [Renderer] HistoryManager initialized 
+[2026-02-11T15:26:06.762Z] [Renderer] ActionsManager initialized 
+[2026-02-11T15:26:06.762Z] [Renderer] PromptManager initialized 
+[2026-02-11T15:26:06.764Z] [Renderer] Renderer ready signal sent 
+[2026-02-11T15:29:40.449Z] [Main] Process started {"cwd":"T:\\Dev\\personal\\_myProductionGithub\\tactio"}
+[2026-02-11T15:29:40.622Z] [Renderer] Renderer process started 
+[2026-02-11T15:29:40.622Z] [Renderer] UIManager initialized 
+[2026-02-11T15:29:40.623Z] [Renderer] SettingsManager initialized 
+[2026-02-11T15:29:40.623Z] [Renderer] HistoryManager initialized 
+[2026-02-11T15:29:40.623Z] [Renderer] ActionsManager initialized 
+[2026-02-11T15:29:40.624Z] [Renderer] PromptManager initialized 
+[2026-02-11T15:29:40.626Z] [Renderer] Renderer ready signal sent 
+[2026-02-11T15:29:53.791Z] [Renderer] HistoryManager: Handling incoming clipboard {"textLength":620}
+[2026-02-11T15:29:53.792Z] [Renderer] HistoryManager: Rendering history. Items: 1 
+[2026-02-11T15:30:07.584Z] [Renderer] HistoryManager: Handling incoming clipboard {"textLength":633}
+[2026-02-11T15:30:07.584Z] [Renderer] HistoryManager: Rendering history. Items: 2 
+[2026-02-11T15:32:09.156Z] [Main] Process started {"cwd":"T:\\Dev\\personal\\_myProductionGithub\\tactio"}
+[2026-02-11T15:32:09.337Z] [Renderer] Renderer process started 
+[2026-02-11T15:32:09.337Z] [Renderer] UIManager initialized 
+[2026-02-11T15:32:09.338Z] [Renderer] SettingsManager initialized 
+[2026-02-11T15:32:09.338Z] [Renderer] HistoryManager initialized 
+[2026-02-11T15:32:09.339Z] [Renderer] ActionsManager initialized 
+[2026-02-11T15:32:09.339Z] [Renderer] PromptManager initialized 
+[2026-02-11T15:32:09.341Z] [Renderer] Renderer ready signal sent 
+[2026-02-11T15:32:13.002Z] [Renderer] HistoryManager: Handling incoming clipboard {"textLength":136}
+[2026-02-11T15:32:13.003Z] [Renderer] HistoryManager: Rendering history. Items: 1 
+[2026-02-11T15:32:15.732Z] [Renderer] Triggering action: Translate to Spanish 
+[2026-02-11T15:32:17.914Z] [Renderer] HistoryManager: Rendering history. Items: 1 
+[2026-02-11T15:32:21.916Z] [Renderer] Triggering action: Translate to Spanish 
+[2026-02-11T15:32:22.744Z] [Renderer] HistoryManager: Rendering history. Items: 1 
+[2026-02-11T15:32:24.780Z] [Renderer] Triggering action: Translate to English 
+[2026-02-11T15:32:25.260Z] [Renderer] HistoryManager: Rendering history. Items: 1 
+[2026-02-11T15:32:37.682Z] [Renderer] HistoryManager: Handling incoming clipboard {"textLength":324}
+[2026-02-11T15:32:37.683Z] [Renderer] HistoryManager: Rendering history. Items: 2 
