@@ -252,6 +252,7 @@ body.loading * {
     font-size: 14px;
     padding: 4px;
     color: #aaa;
+    border-radius: 3px;
 }
 
 .history-actions .icon-btn:hover {

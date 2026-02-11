@@ -18,5 +18,6 @@ contextBridge.exposeInMainWorld('api', {
     selectOutputDirectory: () => ipcRenderer.invoke('select-output-directory'),
     exportActions: () => ipcRenderer.invoke('export-actions'),
     importActions: () => ipcRenderer.invoke('import-actions'),
-    copyToClipboard: (text: string) => ipcRenderer.invoke('copy-to-clipboard', text)
+    copyToClipboard: (text: string) => ipcRenderer.invoke('copy-to-clipboard', text),
+    log: (message: string, data?: any) => ipcRenderer.send('log', message, data)
 });
