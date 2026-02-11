@@ -499,6 +499,13 @@ function renderHistory() {
                 performPaste(version.text);
             };
 
+            // Right Click -> Custom Prompt
+            versionDiv.oncontextmenu = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                openCustomPromptModal(version.text);
+            };
+
             // Actions for this version
             const actionsDiv = document.createElement('div');
             actionsDiv.className = 'history-actions';
@@ -727,6 +734,13 @@ const managerPromptsList = document.getElementById('manager-prompts-list') as HT
 const managerAddBtn = document.getElementById('manager-add-btn') as HTMLButtonElement;
 const managerCloseBtn = document.getElementById('manager-close-btn') as HTMLButtonElement;
 
+// Custom Prompt Modal Elements
+const customPromptModal = document.getElementById('custom-prompt-modal') as HTMLDivElement;
+const customPromptInput = document.getElementById('custom-prompt-input') as HTMLTextAreaElement;
+const customPromptApplyBtn = document.getElementById('custom-prompt-apply-btn') as HTMLButtonElement;
+const customPromptCancelBtn = document.getElementById('custom-prompt-cancel-btn') as HTMLButtonElement;
+let customPromptTargetText = ''; // To store the text we want to apply prompt to
+
 // Emoji Picker
 const emojiPickerBtn = document.getElementById('emoji-picker-btn') as HTMLButtonElement;
 const emojiPalette = document.getElementById('emoji-palette') as HTMLDivElement;
@@ -799,8 +813,61 @@ function editPrompt(index: number) {
     const title = document.getElementById('manager-form-title');
     if (title) title.textContent = 'Edit Prompt';
 
+    promptManagerModal.classList.remove('hidden');
     showManagerView('form');
 }
+
+// ... (existing prompt manager code logic if needed, but we append custom prompt logic here)
+
+// --- Custom Prompt Logic ---
+
+function openCustomPromptModal(text: string) {
+    customPromptTargetText = text;
+    customPromptInput.value = ''; // Clear previous
+    customPromptModal.classList.remove('hidden');
+    customPromptInput.focus();
+}
+
+if (customPromptCancelBtn) {
+    customPromptCancelBtn.onclick = () => {
+        customPromptModal.classList.add('hidden');
+    };
+}
+
+if (customPromptApplyBtn) {
+    customPromptApplyBtn.onclick = async () => {
+        const prompt = customPromptInput.value.trim();
+        if (!prompt) return;
+
+        customPromptModal.classList.add('hidden');
+
+        // Execute Action
+        setLoading(true);
+        try {
+            // Use 'normal' style by default for custom prompts or add a selector?
+            // For now, simple 'normal'.
+            const result = await window.api.triggerAction('Custom Prompt', prompt, 'normal');
+
+            if (result.startsWith('Error:')) {
+                throw new Error(result);
+            }
+
+            // Add result to history
+            addVersionToActiveItem(result, `Custom: ${prompt.substring(0, 15)}...`);
+            enableUI(true);
+
+        } catch (error) {
+            console.error('Custom prompt action failed:', error);
+            alert('Action failed: ' + error);
+            enableUI(true);
+        } finally {
+            setLoading(false);
+        }
+    };
+}
+
+
+
 
 if (emojiPickerBtn) {
     emojiPickerBtn.onclick = () => {
