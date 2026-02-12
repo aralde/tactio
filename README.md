@@ -7,22 +7,25 @@
 * **Global Hotkey**: Trigger the app from anywhere using `Ctrl+Shift+G` (Windows/Linux) or `Cmd+Shift+G` (macOS).
 * **Context-Aware**: Automatically reads your current clipboard content when triggered.
 * **Floating UI**: Appears right next to your mouse cursor for minimal context switching.
-* **AI Integrations**:
-  * **Google Gemini**: fast and free tier available.
-  * **OpenRouter**: access to top-tier models (GPT-4, Claude 3, Llama 3, etc.).
-  * **Groq**: incredibly fast inference speeds.
-* **Customizable Actions**: Define your own quick actions (e.g., "Summarize", "Fix Grammar", "Translate") in `config.json`.
-* **One-Click Paste**: Automatically pastes the transformed text back into your active application.
-* **History**: Keep track of your transformations for easy re-use.
+* **Multi-Provider Support**:
+  * **Google Gemini**: Fast and free tier available.
+  * **OpenRouter**: Access to top-tier models (GPT-4, Claude 3, Llama 3, etc.).
+  * **OpenAI**: Direct integration with GPT models.
+  * **Groq**: Incredibly fast inference speeds.
+* **Customizable Actions**: Define your own quick actions (e.g., "Summarize", "Fix Grammar", "Translate").
+* **History & Eras**: Keep track of your transformations. Create new versions (eras) of a history item by applying new prompts to it.
+* **Custom Prompts on History**: Right-click any history item to apply a custom ad-hoc prompt.
 * **Export/Import**: Save and load your custom actions for easy sharing.
+* **One-Click Paste**: Automatically pastes the transformed text back into your active application.
 
 ## 🛠️ Prerequisites
 
 * **Node.js**: (Version 18 or higher recommended)
-* **API Key**:
+* **API Key** (one or more):
   * [Google Gemini API Key](https://aistudio.google.com/app/apikey)
   * [OpenRouter API Key](https://openrouter.ai/keys)
   * [Groq API Key](https://console.groq.com/keys)
+  * [OpenAI API Key](https://platform.openai.com/api-keys)
 
 ## 📥 Installation
 
@@ -47,60 +50,15 @@
 
 ## ⚙️ Configuration
 
-### 1. Environment Variables (.env)
+Tactio now features a built-in **Settings UI**.
 
-Create a `.env` file in the root directory by copying the example:
+1. Click the **Gear Icon** in the application header.
+2. **LLM Provider**: Select your preferred provider (Gemini, OpenRouter, OpenAI, Groq).
+3. **API Key**: Enter your API key for the selected provider. Keys are stored securely using Electron's `safeStorage`.
+4. **Model**: Select the model you wish to use (e.g., `gemini-2.0-flash-lite-001`).
+5. **Actions**: Manage your quick actions directly in the Settings > Actions tab. You can add, edit, delete, import, and export actions here.
 
-```bash
-cp .env.example .env
-```
-
-Edit the `.env` file to configure your preferred LLM provider:
-
-**For Google Gemini:**
-
-```env
-LLM_SERVICE=GEMINI
-MODEL=gemini-2.0-flash-lite-001
-GEMINI_API_KEY=your_gemini_api_key_here
-```
-
-**For OpenRouter:**
-
-```env
-LLM_SERVICE=OPENROUTER
-MODEL=nvidia/nemotron-3-nano-30b-a3b:free
-OPENROUTER_API_KEY=your_openrouter_api_key_here
-```
-
-**For Groq:**
-
-```env
-LLM_SERVICE=GROQ
-MODEL=llama3-70b-8192
-GROQ_API_KEY=your_groq_api_key_here
-```
-
-### 2. Custom Actions (config.json)
-
-You can define custom prompt shortcuts in `config.json`. The app loads these on startup.
-
-```json
-{
-    "actions": [
-        {
-            "label": "Summarize",
-            "icon": "📝",
-            "prompt": "Summarize the following text concisely:"
-        },
-        {
-            "label": "Fix Grammar",
-            "icon": "✨",
-            "prompt": "Fix grammar and spelling:"
-        }
-    ]
-}
-```
+**Note:** The application no longer uses `.env` files for configuration. All settings are stored in `%APPDATA%/tactio/.tactiorc`.
 
 ## 🏃 Usage
 

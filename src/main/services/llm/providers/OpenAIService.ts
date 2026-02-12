@@ -1,11 +1,12 @@
 import { LLMService } from '../LLMService';
 import { ModelInfo } from '../LLMParameters';
+import { formatBasePrompt } from '../../../prompts';
 
 export class OpenAIService extends LLMService {
     async generateCompletion(prompt: string, text: string): Promise<string> {
         if (!this.apiKey) throw new Error("OpenAI API Key missing.");
 
-        const fullPrompt = `${prompt}\n\n"${text}"`;
+        const fullPrompt = formatBasePrompt(prompt, text);
 
         try {
             const response = await fetch("https://api.openai.com/v1/chat/completions", {
