@@ -111,7 +111,7 @@ export class PromptManager {
             div.innerHTML = `
                 <span class="icon">${action.icon || '⚡'}</span>
                 <span class="label">${action.label}</span>
-                <span class="style-badge">${action.style || 'normal'}</span>
+                <span class="style-badge">${action.style || 'concise'}</span>
             `;
             div.onclick = () => this.openForm(index);
             this.promptsList.appendChild(div);
@@ -127,7 +127,7 @@ export class PromptManager {
             this.editIndexInput.value = "-1";
             this.labelInput.value = "";
             this.iconInput.value = "";
-            this.styleSelect.value = "normal";
+            this.styleSelect.value = "concise";
             this.textInput.value = "";
             if (this.deleteBtn) this.deleteBtn.classList.add('hidden');
         } else {
@@ -138,7 +138,7 @@ export class PromptManager {
 
             this.labelInput.value = action.label;
             this.iconInput.value = action.icon || "";
-            this.styleSelect.value = action.style || "normal";
+            this.styleSelect.value = action.style || "concise";
             this.textInput.value = action.prompt;
 
             if (this.deleteBtn) this.deleteBtn.classList.remove('hidden');

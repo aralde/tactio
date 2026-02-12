@@ -20,6 +20,7 @@ export class HistoryManager {
     }
 
     public handleIncomingClipboard(text: string) {
+        if (!text || text.trim().length === 0) return;
         if (window.api && window.api.log) window.api.log(`HistoryManager: Handling incoming clipboard`, { textLength: text.length });
         this.activeClipboardText = text;
 

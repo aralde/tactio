@@ -1,11 +1,12 @@
 import { LLMService } from '../LLMService';
 import { ModelInfo } from '../LLMParameters';
+import { formatBasePrompt } from '../../../prompts';
 
 export class OpenRouterService extends LLMService {
     async generateCompletion(prompt: string, text: string): Promise<string> {
         if (!this.apiKey) throw new Error("OpenRouter API Key missing.");
 
-        const fullPrompt = `${prompt}\n\n"${text}"`;
+        const fullPrompt = formatBasePrompt(prompt, text);
 
         try {
             const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {

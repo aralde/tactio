@@ -63,7 +63,7 @@ import { PromptManager } from "./managers/PromptManager";
                     const prompt = input.value;
                     if (!prompt) return;
                     close();
-                    triggerAction('Custom', prompt, 'normal', text);
+                    triggerAction('Custom', prompt, 'concise', text);
                 }
             }
         };
@@ -71,7 +71,7 @@ import { PromptManager } from "./managers/PromptManager";
         historyManager = new HistoryManager(uiManager, handlePaste, handleCustomPrompt);
         if (window.api && window.api.log) window.api.log('HistoryManager initialized');
 
-        const triggerAction = async (label: string, prompt: string, style: string = 'normal', textOverride?: string) => {
+        const triggerAction = async (label: string, prompt: string, style: string = 'concise', textOverride?: string) => {
             uiManager.setLoading(true);
 
             if (textOverride) {
@@ -134,7 +134,7 @@ import { PromptManager } from "./managers/PromptManager";
             const config = data.config || data;
             const clipboardText = data.clipboardText || '';
 
-            if (clipboardText) {
+            if (clipboardText && clipboardText.trim().length > 0) {
                 historyManager.handleIncomingClipboard(clipboardText);
                 uiManager.showMain();
             }

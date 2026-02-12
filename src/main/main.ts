@@ -1,6 +1,5 @@
 import { app, ipcMain, clipboard } from 'electron';
 import * as path from 'path';
-import * as dotenv from 'dotenv';
 import { Logger } from './logger';
 import { Store } from './store';
 import { WindowManager } from './services/window/WindowManager';
@@ -10,8 +9,8 @@ import { FileManager } from './services/files/FileManager';
 import { LLMFactory } from './services/llm/LLMFactory';
 import { LLMConfig } from './services/llm/LLMParameters';
 import { simulatePaste } from './automation';
+import { SystemStyles } from './prompts';
 
-dotenv.config();
 
 // Debug: Force log on startup
 console.log('Main process starting...');
@@ -90,7 +89,9 @@ ipcMain.handle('get-settings', () => {
         outputDirectory: s.get('outputDirectory') || path.join(app.getPath('documents'), 'Tactio Output'),
         // Misc
         promptVariables: s.get('promptVariables') || [],
-        generateMetadata: s.get('generateMetadata') !== false
+
+        generateMetadata: s.get('generateMetadata') !== false,
+        actions: s.get('actions') || []
     };
 });
 
@@ -120,6 +121,9 @@ ipcMain.handle('save-settings', (event, newSettings) => {
     if (newSettings.actions !== undefined) store.set('actions', newSettings.actions);
     if (newSettings.promptVariables !== undefined) store.set('promptVariables', newSettings.promptVariables);
     if (newSettings.generateMetadata !== undefined) store.set('generateMetadata', newSettings.generateMetadata);
+
+    // Notify renderers
+    windowManager.sendConfig(store.getAll());
 
     return true;
 });
@@ -158,15 +162,15 @@ function substituteVariables(prompt: string): string {
     return finalPrompt;
 }
 
-ipcMain.handle('trigger-action', async (event, actionLabel, prompt, style = 'normal') => {
+ipcMain.handle('trigger-action', async (event, actionLabel, prompt, style = 'concise') => {
     const totalStart = performance.now();
     console.log(`[Timing] Starting action: ${actionLabel}, Style: ${style}`);
 
     try {
         let systemInstruction = "";
-        if (style === 'professional') systemInstruction = "System: Respond in a highly professional, business-appropriate tone.\n";
-        else if (style === 'casual') systemInstruction = "System: Respond in a casual, friendly, and conversational tone.\n";
-        else if (style === 'concise') systemInstruction = "System: Respond strictly with the requested information. Do not add any introductory or concluding remarks. No formatting unless requested.\n";
+        if (style === 'professional') systemInstruction = SystemStyles.PROFESSIONAL;
+        else if (style === 'casual') systemInstruction = SystemStyles.CASUAL;
+        else if (style === 'concise') systemInstruction = SystemStyles.CONCISE;
 
         const effectivePrompt = systemInstruction ? `${systemInstruction}\n${prompt}` : prompt;
         const finalPrompt = substituteVariables(effectivePrompt);
