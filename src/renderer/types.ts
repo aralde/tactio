@@ -14,6 +14,7 @@ export interface WindowAPI {
     exportActions: () => Promise<boolean>;
     importActions: () => Promise<boolean>;
     copyToClipboard: (text: string) => Promise<boolean>;
+    openPromptCatalog: () => void;
     log: (message: string, data?: any) => void;
 }
 

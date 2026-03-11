@@ -86,6 +86,12 @@ export class PromptManager {
         this.modal.classList.remove('hidden');
     }
 
+    public updateAndRender(actions: Action[]) {
+        this.currentActions = [...actions]; // copy
+        this.renderList();
+        // Don't change view visibility (keep form or list as is), just update underlying data and re-render list
+    }
+
     public hide() {
         this.modal.classList.add('hidden');
     }

@@ -1,4 +1,4 @@
-import { app, ipcMain, clipboard } from 'electron';
+import { app, ipcMain, clipboard, BrowserWindow } from 'electron';
 import * as path from 'path';
 import { Logger } from './logger';
 import { Store } from './store';
@@ -21,44 +21,146 @@ let windowManager: WindowManager;
 let trayManager: TrayManager;
 let automationManager: AutomationManager;
 let fileManager: FileManager;
+let catalogWindow: BrowserWindow | null = null;
 
-app.whenReady().then(() => {
-    // Initialize Store
-    store = new Store({
-        configName: 'user-preferences',
-        defaults: {
-            service: 'GEMINI',
-            apiKey: '',
-            model: 'gemini-2.0-flash-lite-001',
-            actions: []
+// Register Custom Protocol
+if (process.defaultApp) {
+    if (process.argv.length >= 2) {
+        app.setAsDefaultProtocolClient('tactio', process.execPath, [path.resolve(process.argv[1])]);
+    }
+} else {
+    app.setAsDefaultProtocolClient('tactio');
+}
+
+const gotTheLock = app.requestSingleInstanceLock();
+
+if (!gotTheLock) {
+    app.quit();
+} else {
+    app.on('second-instance', (event, commandLine, workingDirectory) => {
+        // Someone tried to run a second instance, we should focus our window.
+        if (windowManager) {
+            const win = windowManager.getWindow();
+            if (win) {
+                if (win.isMinimized()) win.restore();
+                win.focus();
+            }
+        }
+
+        // Handle Protocol URL (Windows)
+        const url = commandLine.find(arg => arg.startsWith('tactio://'));
+        if (url) {
+            handleDeepLink(url);
         }
     });
-    store.init();
 
-    // Initialize Managers
-    windowManager = new WindowManager(store);
-    windowManager.create();
+    app.on('open-url', (event, url) => {
+        event.preventDefault();
+        handleDeepLink(url);
+    });
 
-    trayManager = new TrayManager(windowManager);
-    trayManager.create();
+    app.whenReady().then(() => {
+        // Initialize Store
+        store = new Store({
+            configName: 'user-preferences',
+            defaults: {
+                service: 'GEMINI',
+                apiKey: '',
+                model: 'gemini-2.0-flash-lite-001',
+                actions: []
+            }
+        });
+        store.init();
 
-    automationManager = new AutomationManager(windowManager, store);
-    automationManager.registerGlobalShortcuts();
+        // Initialize Managers
+        windowManager = new WindowManager(store);
+        windowManager.create();
 
-    fileManager = new FileManager(store);
+        trayManager = new TrayManager(windowManager);
+        trayManager.create();
 
-    app.on('activate', () => {
-        if (!windowManager.getWindow()) {
-            windowManager.create();
+        automationManager = new AutomationManager(windowManager, store);
+        automationManager.registerGlobalShortcuts();
+
+        fileManager = new FileManager(store);
+
+        app.on('activate', () => {
+            if (!windowManager.getWindow()) {
+                windowManager.create();
+            }
+        });
+
+        // Handle if launched via URL (Windows/Linux)
+        const url = process.argv.find(arg => arg.startsWith('tactio://'));
+        if (url) {
+            handleDeepLink(url);
         }
     });
-});
+}
 
 app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') {
         app.quit();
     }
 });
+
+function handleDeepLink(url: string) {
+    console.log('[DeepLink] Received URL:', url);
+    try {
+        const urlObj = new URL(url);
+        if (urlObj.hostname === 'add-prompt') {
+            const dataParam = urlObj.searchParams.get('data');
+            if (dataParam) {
+                const promptData = JSON.parse(decodeURIComponent(dataParam));
+                addPromptFromDeepLink(promptData);
+            }
+        }
+    } catch (e) {
+        console.error('[DeepLink] Error parsing URL:', e);
+    }
+}
+
+function addPromptFromDeepLink(promptData: any) {
+    console.log('[DeepLink] Adding prompt:', promptData);
+
+    // Validate and sanitize the incoming data
+    if (!promptData || typeof promptData !== 'object') {
+        console.error('[DeepLink] Invalid prompt data type');
+        return;
+    }
+
+    // Sanitize string inputs to prevent mass injection or XSS
+    const sanitizeString = (str: any, maxLen: number) => {
+        if (typeof str !== 'string') return '';
+        // Basic escaping of HTML tags to prevent innerHTML exploits in renderer
+        const escaped = str.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#x27;');
+        return escaped.substring(0, maxLen).trim();
+    };
+
+    const validStyles = ['concise', 'professional', 'casual'];
+    let style = promptData.style;
+    if (typeof style !== 'string' || !validStyles.includes(style)) {
+        style = 'concise';
+    }
+
+    // Convert to Tactio Action safely
+    const newAction = {
+        label: sanitizeString(promptData.title, 100) || 'New Prompt',
+        // allow larger body but still sanitize to prevent huge memory blobs
+        prompt: sanitizeString(promptData.content, 5000) || '',
+        icon: '📝',
+        style: style
+    };
+
+    const actions = store.get('actions') || [];
+    actions.push(newAction);
+    store.set('actions', actions);
+
+    // Notify Renderer
+    if (windowManager) {
+        windowManager.sendConfig(store.getAll());
+    }
+}
 
 // --- IPC Handlers ---
 
@@ -271,4 +373,33 @@ ipcMain.handle('import-actions', async () => {
         windowManager.sendConfig(store.getAll());
     }
     return result;
+});
+
+// --- Catalog Handlers ---
+
+ipcMain.on('open-prompt-catalog', () => {
+    require('electron').shell.openExternal('http://localhost:3000?source=tactio');
+});
+
+ipcMain.on('add-prompt-from-catalog', (event, promptData) => {
+    console.log('[Catalog] Received prompt:', promptData);
+
+    // promptData should be { title, content, tags... }
+    // Convert to Tactio Action
+    const newAction = {
+        label: promptData.title || 'New Prompt',
+        prompt: promptData.content || '',
+        icon: '📝', // Default icon
+        style: 'concise' // Default style
+    };
+
+    const actions = store.get('actions') || [];
+    actions.push(newAction);
+    store.set('actions', actions);
+
+    // Notify Renderer to update UI
+    windowManager.sendConfig(store.getAll());
+
+    // Optional: Show notification or confirmation log
+    console.log('[Catalog] Prompt added to store.');
 });
