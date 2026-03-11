@@ -35,11 +35,11 @@
     ]
   },
   "devDependencies": {
+    "@electron/rebuild": "^4.0.3",
     "@types/adm-zip": "^0.5.7",
     "@types/node": "^18.0.0",
     "electron": "^41.0.0",
     "electron-builder": "^26.7.0",
-    "electron-rebuild": "^2.0.3",
     "esbuild": "^0.27.3",
     "typescript": "^5.0.0"
   },
@@ -47,6 +47,6 @@
     "@google/generative-ai": "^0.24.1",
     "adm-zip": "^0.5.16",
     "gray-matter": "^4.0.3",
-    "robotjs": "^0.6.0"
+    "robotjs": "npm:@hurdlegroup/robotjs@^0.12.3"
   }
 }
