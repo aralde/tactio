@@ -187,3 +187,21 @@
 [2026-03-11T15:22:57.526Z] [Renderer] ActionsManager initialized 
 [2026-03-11T15:22:57.527Z] [Renderer] PromptManager initialized 
 [2026-03-11T15:22:57.532Z] [Renderer] Renderer ready signal sent 
+[2026-03-11T20:16:47.486Z] [Main] Process started {"cwd":"T:\\Dev\\personal\\_myProductionGithub\\0.Portfolio\\tactio"}
+[2026-03-11T20:16:48.464Z] [Renderer] Renderer process started 
+[2026-03-11T20:16:48.466Z] [Renderer] UIManager initialized 
+[2026-03-11T20:16:48.468Z] [Renderer] SettingsManager initialized 
+[2026-03-11T20:16:48.469Z] [Renderer] HistoryManager initialized 
+[2026-03-11T20:16:48.470Z] [Renderer] ActionsManager initialized 
+[2026-03-11T20:16:48.471Z] [Renderer] PromptManager initialized 
+[2026-03-11T20:16:48.671Z] [Renderer] Renderer ready signal sent 
+[2026-03-11T20:17:47.046Z] [Main] Process started {"cwd":"T:\\Dev\\personal\\_myProductionGithub\\0.Portfolio\\tactio"}
+[2026-03-11T20:28:44.364Z] [Main] Process started {"cwd":"T:\\Dev\\personal\\_myProductionGithub\\0.Portfolio\\tactio"}
+[2026-03-11T20:31:12.798Z] [Main] Process started {"cwd":"T:\\Dev\\personal\\_myProductionGithub\\0.Portfolio\\tactio"}
+[2026-03-11T20:31:13.205Z] [Renderer] Renderer process started 
+[2026-03-11T20:31:13.207Z] [Renderer] UIManager initialized 
+[2026-03-11T20:31:13.208Z] [Renderer] SettingsManager initialized 
+[2026-03-11T20:31:13.209Z] [Renderer] HistoryManager initialized 
+[2026-03-11T20:31:13.210Z] [Renderer] ActionsManager initialized 
+[2026-03-11T20:31:13.211Z] [Renderer] PromptManager initialized 
+[2026-03-11T20:31:13.221Z] [Renderer] Renderer ready signal sent 
