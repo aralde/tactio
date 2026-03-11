@@ -13,6 +13,7 @@
         <div id="drag-handle"></div>
         <div id="window-controls">
             <div id="pin-icon" title="Toggle Pin" class="control-icon pinned">📌</div>
+            <div id="catalog-icon" title="Browse Prompt Catalog" class="control-icon">🌐</div>
             <div id="settings-icon" title="Settings" class="control-icon">⚙️</div>
             <div id="close-btn" title="Close" class="control-icon">✕</div>
         </div>
@@ -99,6 +100,9 @@
         <div class="modal-content">
             <div id="manager-list-view">
                 <h3>Manage Prompts</h3>
+                <p style="font-size: 0.8em; color: #888; margin-bottom: 10px;">
+                    Want more? <a href="#" id="manager-open-library-link" style="color: #4a9eff; text-decoration: none;">Import prompts from open prompt Library</a>
+                </p>
                 <div id="manager-prompts-list" class="manager-list">
                     <!-- Items injected here -->
                 </div>

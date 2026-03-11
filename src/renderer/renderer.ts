@@ -140,12 +140,39 @@ import { PromptManager } from "./managers/PromptManager";
             }
 
             actionsManager.render(config.actions);
+            // If the prompt manager is currently open, we should update its internal state
+            // so if a deep link added a prompt, it shows up immediately in the list
+            if (promptManager) {
+                promptManager.updateAndRender(config.actions);
+            }
 
             if (config.outputMode) {
                 uiManager.updateModeUI(config.outputMode);
             }
 
             uiManager.onSettingsClick(() => settingsManager.open());
+
+            const catalogBtn = document.getElementById('catalog-icon');
+            if (catalogBtn) {
+                catalogBtn.addEventListener('click', () => {
+                    // Open in default browser
+                    // We need an API for this since renderer can't access shell directly without exposure
+                    // But wait, we have `window.api.openPromptCatalog` mapped to `ipcRenderer.send`
+                    // Let's repurpose that handler in main to use shell.openExternal
+                    if (window.api && window.api.openPromptCatalog) {
+                        window.api.openPromptCatalog();
+                    }
+                });
+            }
+            const managerLibLink = document.getElementById('manager-open-library-link');
+            if (managerLibLink) {
+                managerLibLink.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    if (window.api && window.api.openPromptCatalog) {
+                        window.api.openPromptCatalog();
+                    }
+                });
+            }
         });
 
         // --- Global Shortcuts ---

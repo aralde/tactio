@@ -129,3 +129,61 @@
 [2026-02-11T19:58:24.533Z] [Renderer] HistoryManager: Rendering history. Items: 2 
 [2026-02-11T20:09:04.353Z] [Renderer] HistoryManager: Handling incoming clipboard {"textLength":951}
 [2026-02-11T20:09:04.354Z] [Renderer] HistoryManager: Rendering history. Items: 3 
+[2026-02-12T18:31:21.760Z] [Main] Process started {"cwd":"T:\\Dev\\personal\\_myProductionGithub\\tactio"}
+[2026-02-12T18:31:22.229Z] [Renderer] Renderer process started 
+[2026-02-12T18:31:22.230Z] [Renderer] UIManager initialized 
+[2026-02-12T18:31:22.230Z] [Renderer] SettingsManager initialized 
+[2026-02-12T18:31:22.231Z] [Renderer] HistoryManager initialized 
+[2026-02-12T18:31:22.231Z] [Renderer] ActionsManager initialized 
+[2026-02-12T18:31:22.232Z] [Renderer] PromptManager initialized 
+[2026-02-12T18:31:22.259Z] [Renderer] Renderer ready signal sent 
+[2026-02-12T18:31:24.744Z] [Renderer] HistoryManager: Handling incoming clipboard {"textLength":595}
+[2026-02-12T18:31:24.745Z] [Renderer] HistoryManager: Rendering history. Items: 1 
+[2026-02-12T18:34:27.339Z] [Main] Process started {"cwd":"T:\\Dev\\personal\\_myProductionGithub\\tactio"}
+[2026-02-12T18:34:27.507Z] [Renderer] Renderer process started 
+[2026-02-12T18:34:27.508Z] [Renderer] UIManager initialized 
+[2026-02-12T18:34:27.509Z] [Renderer] SettingsManager initialized 
+[2026-02-12T18:34:27.509Z] [Renderer] HistoryManager initialized 
+[2026-02-12T18:34:27.509Z] [Renderer] ActionsManager initialized 
+[2026-02-12T18:34:27.510Z] [Renderer] PromptManager initialized 
+[2026-02-12T18:34:27.513Z] [Renderer] Renderer ready signal sent 
+[2026-02-12T18:34:31.926Z] [Renderer] HistoryManager: Handling incoming clipboard {"textLength":529}
+[2026-02-12T18:34:31.928Z] [Renderer] HistoryManager: Rendering history. Items: 1 
+[2026-02-12T18:37:27.676Z] [Renderer] Triggering action: Cyberpunk City Description 
+[2026-02-12T18:37:28.872Z] [Renderer] HistoryManager: Rendering history. Items: 1 
+[2026-02-12T18:39:09.939Z] [Main] Process started {"cwd":"T:\\Dev\\personal\\_myProductionGithub\\tactio"}
+[2026-02-12T18:39:10.104Z] [Renderer] Renderer process started 
+[2026-02-12T18:39:10.105Z] [Renderer] UIManager initialized 
+[2026-02-12T18:39:10.105Z] [Renderer] SettingsManager initialized 
+[2026-02-12T18:39:10.106Z] [Renderer] HistoryManager initialized 
+[2026-02-12T18:39:10.106Z] [Renderer] ActionsManager initialized 
+[2026-02-12T18:39:10.107Z] [Renderer] PromptManager initialized 
+[2026-02-12T18:39:10.109Z] [Renderer] Renderer ready signal sent 
+[2026-02-12T18:39:12.393Z] [Renderer] HistoryManager: Handling incoming clipboard {"textLength":245}
+[2026-02-12T18:39:12.394Z] [Renderer] HistoryManager: Rendering history. Items: 1 
+[2026-02-12T18:45:16.914Z] [Renderer] HistoryManager: Handling incoming clipboard {"textLength":483}
+[2026-02-12T18:45:16.915Z] [Renderer] HistoryManager: Rendering history. Items: 2 
+[2026-03-11T14:53:53.801Z] [Main] Process started {"cwd":"T:\\Dev\\personal\\_myProductionGithub\\0.Portfolio\\tactio"}
+[2026-03-11T14:53:54.056Z] [Renderer] Renderer process started 
+[2026-03-11T14:53:54.057Z] [Renderer] UIManager initialized 
+[2026-03-11T14:53:54.058Z] [Renderer] SettingsManager initialized 
+[2026-03-11T14:53:54.058Z] [Renderer] HistoryManager initialized 
+[2026-03-11T14:53:54.059Z] [Renderer] ActionsManager initialized 
+[2026-03-11T14:53:54.059Z] [Renderer] PromptManager initialized 
+[2026-03-11T14:53:54.105Z] [Renderer] Renderer ready signal sent 
+[2026-03-11T15:16:16.351Z] [Main] Process started {"cwd":"T:\\Dev\\personal\\_myProductionGithub\\0.Portfolio\\tactio"}
+[2026-03-11T15:16:16.583Z] [Renderer] Renderer process started 
+[2026-03-11T15:16:16.584Z] [Renderer] UIManager initialized 
+[2026-03-11T15:16:16.585Z] [Renderer] SettingsManager initialized 
+[2026-03-11T15:16:16.585Z] [Renderer] HistoryManager initialized 
+[2026-03-11T15:16:16.585Z] [Renderer] ActionsManager initialized 
+[2026-03-11T15:16:16.586Z] [Renderer] PromptManager initialized 
+[2026-03-11T15:16:16.589Z] [Renderer] Renderer ready signal sent 
+[2026-03-11T15:22:57.321Z] [Main] Process started {"cwd":"T:\\Dev\\personal\\_myProductionGithub\\0.Portfolio\\tactio"}
+[2026-03-11T15:22:57.524Z] [Renderer] Renderer process started 
+[2026-03-11T15:22:57.525Z] [Renderer] UIManager initialized 
+[2026-03-11T15:22:57.525Z] [Renderer] SettingsManager initialized 
+[2026-03-11T15:22:57.526Z] [Renderer] HistoryManager initialized 
+[2026-03-11T15:22:57.526Z] [Renderer] ActionsManager initialized 
+[2026-03-11T15:22:57.527Z] [Renderer] PromptManager initialized 
+[2026-03-11T15:22:57.532Z] [Renderer] Renderer ready signal sent 
