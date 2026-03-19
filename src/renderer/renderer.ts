@@ -146,34 +146,29 @@ import { PromptManager } from "./managers/PromptManager";
                 promptManager.updateAndRender(config.actions);
             }
 
-            if (config.outputMode) {
-                uiManager.updateModeUI(config.outputMode);
-            }
-
-            uiManager.onSettingsClick(() => settingsManager.open());
-
-            const catalogBtn = document.getElementById('catalog-icon');
-            if (catalogBtn) {
-                catalogBtn.addEventListener('click', () => {
-                    // Open in default browser
-                    // We need an API for this since renderer can't access shell directly without exposure
-                    // But wait, we have `window.api.openPromptCatalog` mapped to `ipcRenderer.send`
-                    // Let's repurpose that handler in main to use shell.openExternal
-                    if (window.api && window.api.openPromptCatalog) {
-                        window.api.openPromptCatalog();
-                    }
-                });
-            }
-            const managerLibLink = document.getElementById('manager-open-library-link');
-            if (managerLibLink) {
-                managerLibLink.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    if (window.api && window.api.openPromptCatalog) {
-                        window.api.openPromptCatalog();
-                    }
-                });
-            }
+            uiManager.updateModeUI(config.outputMode);
         });
+
+        // --- Catalog Links (One-time setup) ---
+        const catalogBtn = document.getElementById('catalog-icon');
+        if (catalogBtn) {
+            catalogBtn.addEventListener('click', () => {
+                if (window.api && window.api.openPromptCatalog) {
+                    window.api.openPromptCatalog();
+                }
+            });
+        }
+        const managerLibLink = document.getElementById('manager-open-library-link');
+        if (managerLibLink) {
+            managerLibLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (window.api && window.api.openPromptCatalog) {
+                    window.api.openPromptCatalog();
+                }
+            });
+        }
+
+        uiManager.onSettingsClick(() => settingsManager.open());
 
         // --- Global Shortcuts ---
         document.addEventListener('keydown', (e) => {
