@@ -14,7 +14,7 @@ export class OpenRouterService extends LLMService {
                 headers: {
                     "Authorization": `Bearer ${this.apiKey}`,
                     "Content-Type": "application/json",
-                    "HTTP-Referer": "http://localhost:3000",
+                    "HTTP-Referer": "https://pureprompts.vercel.app/",
                     "X-Title": "Tactio"
                 },
                 body: JSON.stringify({
