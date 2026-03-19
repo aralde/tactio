@@ -18,15 +18,35 @@
 
 ---
 
-## 💡 The Solution: AI Superpowers, Zero Subscription Fees
+## 🎯 The Mission: AI Superpowers, Zero Subscription Fees
 
-**Tactio** was built with a clear mission: to bring powerful, integrated AI to your desktop without forcing you into expensive monthly subscriptions like Windows Copilot or ChatGPT Plus. 
-
-By leveraging **Free Tiers** from providers like **Google Gemini**, **Groq**, and **OpenRouter**, Tactio gives you native, keyboard-first AI capabilities across your entire OS—**completely free**. It lives quietly in the background and springs into action with a simple global hotkey (`Ctrl+Shift+G`), allowing you to transform your clipboard content instantly using top-tier Large Language Models.
+**Tactio** brings powerful, integrated AI to your desktop without the expensive monthly subscriptions. By leveraging **Free Tiers** from providers like **Google Gemini**, **Groq**, and **OpenRouter**, Tactio gives you native, keyboard-first AI capabilities across your entire OS—**completely free**.
 
 <div align="center">
-  <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Laptop.png" width="200" alt="App Screenshot Placeholder" style="border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);" />
-  <br><i>(Imagine your beautiful UI here! You can replace this placeholder with a real screenshot)</i>
+  <img src="assets/Tactio_7VBFgIL9V6.gif" width="600" alt="Tactio Demo" style="border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);" />
+  <br>
+  <i>See Tactio in action: Copy text, trigger with Ctrl+Shift+G, select an AI action, and watch it paste!</i>
+</div>
+
+---
+
+## 📸 Visual Walkthrough
+
+### 🚀 Powerful & Flexible UI
+Our sleek, dark-themed interface is designed for speed and clarity.
+
+| Core Features | Customization |
+| :--- | :--- |
+| ![Settings](assets/Tactio_6zE5Tf6EWF.png) <br> **Smart Settings**: Choose your favorite LLM (Gemini, OpenRouter, Groq, OpenAI), manage your API keys securely, and set up your preferred output directories. | ![Manage Prompts](assets/Tactio_vBG0rbV54r.png) <br> **Action Catalog**: Browse and manage your library of AI transformations. Add new ones or refine existing prompts to fit your workflow. |
+| ![Custom Prompt](assets/Tactio_X1j1bHAwza.png) <br> **On-the-fly Magic**: Need a quick, one-off transformation? Use the Custom Prompt tool to talk to the AI without creating a permanent action. | ![File Output](assets/explorer_EFRskGdeD6.png) <br> **Knowledge Base Ready**: Automatically save your AI results as clean, formatted Markdown files—perfect for Obsidian, Notion, or your project docs. |
+
+### 🌐 ecosystem Integration
+Tactio doesn't just live in your tray; it connects to the wider prompt ecosystem.
+
+<div align="center">
+  <img src="assets/chrome_bwgscxf6f0.png" width="700" alt="Pure Prompts Integration" style="border-radius: 8px; border: 1px solid #333;" />
+  <br>
+  <b>One-Click Install from Pure Prompts</b>: Browse high-quality, community-tested prompts on <a href="https://pureprompts.vercel.app/">purePrompts</a> and install them directly into Tactio with a single click.
 </div>
 
 ---

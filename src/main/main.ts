@@ -378,7 +378,7 @@ ipcMain.handle('import-actions', async () => {
 // --- Catalog Handlers ---
 
 ipcMain.on('open-prompt-catalog', () => {
-    require('electron').shell.openExternal('http://localhost:3000?source=tactio');
+    require('electron').shell.openExternal('https://pureprompts.vercel.app/?source=tactio');
 });
 
 ipcMain.on('add-prompt-from-catalog', (event, promptData) => {
