@@ -16,6 +16,7 @@ export class SettingsManager {
     // Actions Management
     private importActionsBtn = document.getElementById('import-actions-btn') as HTMLButtonElement;
     private exportActionsBtn = document.getElementById('export-actions-btn') as HTMLButtonElement;
+    private githubLink = document.getElementById('github-link') as HTMLAnchorElement;
 
     private currentSettings: any = {};
 
@@ -73,6 +74,13 @@ export class SettingsManager {
             this.exportActionsBtn.onclick = async () => {
                 const success = await window.api.exportActions();
                 if (success) alert('Actions exported successfully!');
+            };
+        }
+
+        if (this.githubLink) {
+            this.githubLink.onclick = (e) => {
+                e.preventDefault();
+                window.api.openExternal('https://github.com/aralde/tactio');
             };
         }
     }

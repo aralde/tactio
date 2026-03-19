@@ -20,5 +20,6 @@ contextBridge.exposeInMainWorld('api', {
     importActions: () => ipcRenderer.invoke('import-actions'),
     copyToClipboard: (text: string) => ipcRenderer.invoke('copy-to-clipboard', text),
     openPromptCatalog: () => ipcRenderer.send('open-prompt-catalog'),
+    openExternal: (url: string) => ipcRenderer.send('open-external', url),
     log: (message: string, data?: any) => ipcRenderer.send('log', message, data)
 });

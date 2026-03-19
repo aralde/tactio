@@ -381,6 +381,10 @@ ipcMain.on('open-prompt-catalog', () => {
     require('electron').shell.openExternal('https://pureprompts.vercel.app/?source=tactio');
 });
 
+ipcMain.on('open-external', (event, url) => {
+    require('electron').shell.openExternal(url);
+});
+
 ipcMain.on('add-prompt-from-catalog', (event, promptData) => {
     console.log('[Catalog] Received prompt:', promptData);
 

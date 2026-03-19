@@ -8,3 +8,4 @@ config.json
 actions
 *.log
 .vscode/
+.claude/
