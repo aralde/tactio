@@ -6,3 +6,5 @@ dist-build
 secrets.json
 config.json
 actions
+*.log
+.vscode/
