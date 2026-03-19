@@ -10,7 +10,7 @@
 <br>
 *Your AI-driven, invisible productivity companion.*
 
-[![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](https://opensource.org/licenses/ISC)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18-green.svg)](https://nodejs.org/)
 [![Electron](https://img.shields.io/badge/Electron-Latest-black.svg?logo=electron)](https://www.electronjs.org/)
 
@@ -100,7 +100,18 @@ Unlock your full potential with these powerful built-in transformations:
 
 ---
 
-## 🛠️ Installation & Setup
+## 📦 Download & Install
+
+### Windows (Recommended)
+
+The easiest way to get started is to download the latest version from our **[Releases page](https://github.com/aralde/tactio/releases)**.
+
+*   **[Tactio-Setup.exe](https://github.com/aralde/tactio/releases)**: The standard installer (NSIS). Recommended for most users.
+*   **[Tactio-Portable.exe](https://github.com/aralde/tactio/releases)**: No installation required. Just download and run! 🚀
+
+---
+
+## 🛠️ Installation & Setup (For Developers)
 
 ### Prerequisites
 
@@ -141,7 +152,7 @@ Tactio features a sleek built-in **Settings UI**. No `.env` files required!
 
 ## 📄 License
 
-Released under the **ISC License**.
+Released under the **MIT License**.
 
 <div align="center">
   <i>Built with ❤️ by <a href="http://github.com/aralde/">aralde</a> to turbocharge your productivity.</i>

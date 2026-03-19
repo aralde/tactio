@@ -397,8 +397,8 @@ body.loading * {
     border: 1px solid #444;
     border-radius: 8px;
     padding: 20px;
-    width: 80%;
-    max-width: 250px;
+    width: 90%;
+    max-width: 320px;
     color: #e0e0e0;
     box-shadow: 0 4px 20px rgba(0,0,0,0.5);
 }
@@ -797,6 +797,44 @@ textarea#custom-prompt-input {
 .emoji-option:hover {
     background: #444;
     transform: scale(1.2);
+}
+
+/* Help Section Styles */
+.help-content {
+    font-size: 11px;
+    color: #aaa;
+    line-height: 1.4;
+}
+
+.help-content p {
+    margin: 5px 0;
+}
+
+.help-content ul {
+    padding-left: 15px;
+    margin: 5px 0;
+}
+
+.help-content li {
+    margin-bottom: 3px;
+}
+
+.help-content code {
+    background: #1e1e1e;
+    padding: 2px 4px;
+    border-radius: 3px;
+    color: #eee;
+    font-family: monospace;
+}
+
+#github-link {
+    color: #4a9eff;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+#github-link:hover {
+    text-decoration: underline;
 }
 
 /* Resize Handle Overlay */
