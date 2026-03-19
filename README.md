@@ -1,83 +1,128 @@
+<div align="center">
+
+![Tactio Banner](https://capsule-render.vercel.app/api?type=waving&color=0:8a2be2,100:4b0082&height=200&section=header&text=Tactio&fontSize=80&fontColor=ffffff)
+
+<img src="assets/tactio-logo-wt.png" width="120" height="auto" alt="Tactio Logo" />
+
 # Tactio
 
-**Tactio** is a powerful, AI-driven productivity tool designed to streamline your workflow through a simple "Copy -> Transform -> Paste" mechanism.  It lives quietly in the background and springs to action with a global hotkey, allowing you to process clipboard content using Large Language Models (LLMs) like Google Gemini or OpenRouter models.
+**Copy. Transform. Paste. 🚀**
+<br>
+*Your AI-driven, invisible productivity companion.*
 
-## 🚀 Features
+[![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](https://opensource.org/licenses/ISC)
+[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18-green.svg)](https://nodejs.org/)
+[![Electron](https://img.shields.io/badge/Electron-Latest-black.svg?logo=electron)](https://www.electronjs.org/)
 
-* **Global Hotkey**: Trigger the app from anywhere using `Ctrl+Shift+G` (Windows/Linux) or `Cmd+Shift+G` (macOS).
-* **Context-Aware**: Automatically reads your current clipboard content when triggered.
-* **Floating UI**: Appears right next to your mouse cursor for minimal context switching.
-* **Multi-Provider Support**:
-  * **Google Gemini**: Fast and free tier available.
-  * **OpenRouter**: Access to top-tier models (GPT-4, Claude 3, Llama 3, etc.).
-  * **OpenAI**: Direct integration with GPT models.
-  * **Groq**: Incredibly fast inference speeds.
-* **Customizable Actions**: Define your own quick actions (e.g., "Summarize", "Fix Grammar", "Translate").
-* **History & Eras**: Keep track of your transformations. Create new versions (eras) of a history item by applying new prompts to it.
-* **Custom Prompts on History**: Right-click any history item to apply a custom ad-hoc prompt.
-* **Export/Import**: Save and load your custom actions for easy sharing.
-* **One-Click Paste**: Automatically pastes the transformed text back into your active application.
+</div>
 
-## 🛠️ Prerequisites
+---
 
-* **Node.js**: (Version 18 or higher recommended)
-* **API Key** (one or more):
-  * [Google Gemini API Key](https://aistudio.google.com/app/apikey)
-  * [OpenRouter API Key](https://openrouter.ai/keys)
-  * [Groq API Key](https://console.groq.com/keys)
-  * [OpenAI API Key](https://platform.openai.com/api-keys)
+## 💡 The Solution: AI Superpowers, Zero Subscription Fees
 
-## 📥 Installation
+**Tactio** was built with a clear mission: to bring powerful, integrated AI to your desktop without forcing you into expensive monthly subscriptions like Windows Copilot or ChatGPT Plus. 
 
-1. **Clone the repository**:
+By leveraging **Free Tiers** from providers like **Google Gemini**, **Groq**, and **OpenRouter**, Tactio gives you native, keyboard-first AI capabilities across your entire OS—**completely free**. It lives quietly in the background and springs into action with a simple global hotkey (`Ctrl+Shift+G`), allowing you to transform your clipboard content instantly using top-tier Large Language Models.
 
-    ```bash
-    git clone https://github.com/yourusername/tactio.git
-    cd tactio
-    ```
+<div align="center">
+  <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Objects/Laptop.png" width="200" alt="App Screenshot Placeholder" style="border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);" />
+  <br><i>(Imagine your beautiful UI here! You can replace this placeholder with a real screenshot)</i>
+</div>
 
-2. **Install dependencies**:
+---
 
-    ```bash
-    npm install
-    ```
+## 🔗 Seamless purePrompts Integration
 
-3. **Rebuild native modules** (if necessary, for `robotjs`):
+Tactio integrates natively with [purePrompts.vercel.app](https://pureprompts.vercel.app/). Browse our curated catalog of high-quality, community-tested prompts and **install them directly into your Tactio app with a single click**. No manual copying across apps—your new superpower is immediately available from the hotkey menu!
 
-    ```bash
-    npm run rebuild
-    ```
+---
+
+## 🔥 Best Use Cases
+
+Unlock your full potential with these powerful built-in transformations:
+
+### 💻 For Developers (Code)
+
+* **🐛 Bug Detection**: Instantly review code snippets for logical errors, edge cases, and performance bottlenecks.
+* **♻️ Safe Refactoring**: Rewrite code to improve readability and structure while maintaining the exact same functionality.
+* **📖 Step-by-Step Explanation**: Demystify complex code blocks line-by-line using accessible language.
+* **⚡ Performance Optimization**: Identify bottlenecks (time/memory complexity) and get a highly optimized version.
+
+### 📝 For Writers & Content (Text)
+
+* **✂️ Professional Rewrite**: Transform raw thoughts into clear, direct, and professional text, eliminating jargon and errors.
+* **🌍 Contextual Translation**: Translate text accurately while preserving technical terms and tone.
+* **📌 Ultra-short TL;DR**: Generate a 2-sentence summary that captures the absolute core idea of a long text.
+* **📋 Text to Checklist**: Turn unstructured emails or meeting notes into actionable checklist items.
+
+### ✉️ For Communication (Emails & Messages)
+
+* **🚀 Fast Replies**: Generate brief, professional email responses including next steps and clear answers.
+* **🕊️ Tone Softener**: Make collaborative feedback sound constructive rather than aggressive.
+* **🧵 Thread Summarization**: Condense long conversation threads into a 10-line summary of "who said what" and "what's pending".
+
+### 📚 For Documentation & Architecture
+
+* **📄 Generate Tech Docs**: Turn logic/code into Markdown docs with params, outputs, and examples.
+* **🎯 Decisions & Risks Extractor**: Pull out key decisions, identified risks, and open questions from meeting notes.
+* **⚙️ Snippet Creator**: Convert raw text into a reusable template with `[PLACEHOLDERS]`.
+
+---
+
+## 🚀 Key Features
+
+* **⌨️ Global Hotkey**: Trigger the app instantly from anywhere (`Ctrl+Shift+G` / `Cmd+Shift+G`).
+* **🧠 Context-Aware**: Reads your current clipboard content automatically.
+* **🖱️ Floating UI**: Appears right next to your mouse cursor for zero context switching.
+* **🌐 Multi-Provider Support**: Choose between Google Gemini, OpenRouter, OpenAI, and Groq.
+* **⏳ History & Eras**: Track transformations and create versions (eras) of an item by chaining prompts.
+* **⚡ One-Click Paste**: Automatically injects the transformed text back into your active application!
+
+---
+
+## 🛠️ Installation & Setup
+
+### Prerequisites
+
+* **Node.js**: v18 or higher.
+* **API Keys**: Get one from [Google Gemini](https://aistudio.google.com/app/apikey), [OpenRouter](https://openrouter.ai/keys), [Groq](https://console.groq.com/keys), or [OpenAI](https://platform.openai.com/api-keys).
+
+### Quick Start
+
+1. **Clone & Install**:
+
+   ```bash
+   git clone https://github.com/yourusername/tactio.git
+   cd tactio
+   npm install
+   ```
+
+2. **Rebuild Native Modules** (Crucial for `robotjs`):
+
+   ```bash
+   npm run rebuild
+   ```
+
+3. **Launch Tactio**:
+
+   ```bash
+   npm start
+   ```
+
+---
 
 ## ⚙️ Configuration
 
-Tactio now features a built-in **Settings UI**.
+Tactio features a sleek built-in **Settings UI**. No `.env` files required!
 
-1. Click the **Gear Icon** in the application header.
-2. **LLM Provider**: Select your preferred provider (Gemini, OpenRouter, OpenAI, Groq).
-3. **API Key**: Enter your API key for the selected provider. Keys are stored securely using Electron's `safeStorage`.
-4. **Model**: Select the model you wish to use (e.g., `gemini-2.0-flash-lite-001`).
-5. **Actions**: Manage your quick actions directly in the Settings > Actions tab. You can add, edit, delete, import, and export actions here.
-
-**Note:** The application no longer uses `.env` files for configuration. All settings are stored in `%APPDATA%/tactio/.tactiorc`.
-
-## 🏃 Usage
-
-1. **Start the application**:
-
-    ```bash
-    npm start
-    ```
-
-2. **Copy some text** from any application (`Ctrl+C`).
-3. **Trigger Tactio** by pressing `Ctrl+Shift+G`.
-4. **Select an Action** or type a custom prompt.
-5. **View the Result** and click it (or the action) to paste it back into your document.
-
-## 🏗️ Development
-
-* **Build**: `npm run build`
-* **Rebuild Native Deps**: `npm run rebuild` (Useful if you switch Node versions or OS)
+1. Click the **Gear Icon** in the header.
+2. Select your **LLM Provider** and enter your **API Key** (stored securely via Electron's `safeStorage` in `%APPDATA%/tactio/.tactiorc`).
+3. Choose your preferred **Model** and manage your **Custom Actions**.
 
 ## 📄 License
 
-ISC
+Released under the **ISC License**.
+
+<div align="center">
+  <i>Built with ❤️ by <a href="http://github.com/aralde/">aralde</a> to turbocharge your productivity.</i>
+</div>
