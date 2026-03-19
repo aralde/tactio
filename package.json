@@ -8,20 +8,23 @@
     "build": "npm run build:renderer && tsc",
     "build:renderer": "copy src\\renderer\\index.html dist\\renderer\\index.html && copy src\\renderer\\styles.css dist\\renderer\\styles.css && npx esbuild src/renderer/renderer.ts --bundle --outfile=dist/renderer/renderer.bundle.js --platform=browser --target=es2020",
     "build:portable": "npm run build:renderer && tsc && electron-builder --win portable",
+    "build:installer": "npm run build:renderer && tsc && electron-builder --win nsis",
     "rebuild": "electron-rebuild -f -w robotjs",
     "postinstall": "electron-builder install-app-deps"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "Ariel Deibe",
+  "license": "MIT",
   "build": {
     "npmRebuild": false,
     "appId": "com.aralde.tactio",
     "productName": "Tactio",
     "icon": "assets/tactio-logo.ico",
     "win": {
-      "target": "portable",
-      "artifactName": "${productName}Portable_${version}.${ext}",
+      "target": [
+        "nsis",
+        "portable"
+      ],
       "icon": "assets/tactio-logo.ico"
     },
     "directories": {
@@ -36,6 +39,7 @@
   },
   "devDependencies": {
     "@electron/rebuild": "^4.0.3",
+    "node-addon-api": "^8.3.0",
     "@types/adm-zip": "^0.5.7",
     "@types/node": "^18.0.0",
     "electron": "^41.0.0",
