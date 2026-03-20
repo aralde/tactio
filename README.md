@@ -123,7 +123,7 @@ The easiest way to get started is to download the latest version from our **[Rel
 1. **Clone & Install**:
 
    ```bash
-   git clone https://github.com/yourusername/tactio.git
+   git clone https://github.com/aralde/tactio.git
    cd tactio
    npm install
    ```
