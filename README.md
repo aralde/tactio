@@ -18,9 +18,11 @@
 
 ---
 
-## 🎯 The Mission: AI Superpowers, Zero Subscription Fees
+## 🎯 The Mission: Universal AI Utility, Native & Immediate
 
-**Tactio** brings powerful, integrated AI to your desktop without the expensive monthly subscriptions. By leveraging **Free Tiers** from providers like **Google Gemini**, **Groq**, and **OpenRouter**, Tactio gives you native, keyboard-first AI capabilities across your entire OS—**completely free**.
+**Tactio** is a powerful productivity utility designed to bring multiple LLMs directly into your workflow. While it excels at leveraging **Free Tiers** (Google Gemini, Groq, OpenRouter) to provide high-end AI capabilities at zero cost, its true power lies in its **context-free interaction**. 
+
+Forget about switching tabs or copy-pasting into chat interfaces. With a single keystroke, you can apply complex transformations to any text on your screen and get the result injected back instantly.
 
 <div align="center">
   <img src="assets/Tactio_7VBFgIL9V6.gif" width="600" alt="Tactio Demo" style="border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);" />
@@ -96,7 +98,19 @@ Unlock your full potential with these powerful built-in transformations:
 * **🖱️ Floating UI**: Appears right next to your mouse cursor for zero context switching.
 * **🌐 Multi-Provider Support**: Choose between Google Gemini, OpenRouter, OpenAI, and Groq.
 * **⏳ History & Eras**: Track transformations and create versions (eras) of an item by chaining prompts.
-* **⚡ One-Click Paste**: Automatically injects the transformed text back into your active application!
+* **One-Click Apply**: Automatically injects the transformed text back into your active application!
+* **No Context Switching**: Trigger, select, and receive—all without leaving your current app.
+
+---
+
+## 🧠 Technical Architecture & LLM Integration
+
+Tactio is built with security and performance in mind:
+
+*   **Provider Agnostic**: Integrates natively with the **Google Generative AI SDK** for Gemini and uses optimized API calls for **OpenRouter**, **Groq**, and **OpenAI**.
+*   **Secure Key Management**: API keys are stored locally and encrypted using Electron's `safeStorage` API. They are never sent to third-party servers (other than the LLM provider itself).
+*   **IPC Communication**: Uses an asynchronous Inter-Process Communication (IPC) bridge between the Node.js backend (Main) and the UI (Renderer) for a lag-free experience.
+*   **Native Control**: Leverages `robotjs` for low-level keyboard simulation, enabling the "Copy-Transform-Paste" loop across any application.
 
 ---
 
