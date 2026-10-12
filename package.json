@@ -14,7 +14,7 @@
   },
   "keywords": [],
   "author": "aralde",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "build": {
     "npmRebuild": false,
     "appId": "com.aralde.tactio",
