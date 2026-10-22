@@ -10,7 +10,7 @@
 <br>
 *Your AI-driven, invisible productivity companion.*
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18-green.svg)](https://nodejs.org/)
 [![Electron](https://img.shields.io/badge/Electron-Latest-black.svg?logo=electron)](https://www.electronjs.org/)
 
@@ -166,7 +166,7 @@ Tactio features a sleek built-in **Settings UI**. No `.env` files required!
 
 ## 📄 License
 
-Released under the **MIT License**.
+Released under the **Apache License 2.0**. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
 
 <div align="center">
   <i>Built with ❤️ by <a href="http://github.com/aralde/">aralde</a> to turbocharge your productivity.</i>
