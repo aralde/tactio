@@ -28,6 +28,10 @@ export class TrayManager {
                     }
                 }
             },
+            {
+                label: 'Folder agent…',
+                click: () => this.windowManager.showAgent()
+            },
             { type: 'separator' },
             {
                 label: 'Quit',

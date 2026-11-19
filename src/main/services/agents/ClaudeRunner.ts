@@ -1,4 +1,4 @@
-import { spawn, spawnSync } from 'child_process';
+import { execFile, spawn, spawnSync } from 'child_process';
 import * as fs from 'fs';
 import { claudeCandidates, parseResult, ClaudeResult } from './claudeCli';
 
@@ -22,20 +22,21 @@ export function resolveClaudePath(saved?: string): string | undefined {
 }
 
 /** Why the agent can't run, or undefined when `claude --version` answers. */
-export function claudeProblem(bin: string | undefined): string | undefined {
-    if (!bin) return 'Claude Code not found. Install it and sign in, or set its path in Settings.';
-    const out = spawnSync(bin, ['--version'], { encoding: 'utf8', timeout: 30_000 });
-    if (out.error || out.status !== 0) return `\`${bin} --version\` failed. Check the Claude Code install.`;
-    return undefined;
+export function claudeProblem(bin: string | undefined): Promise<string | undefined> {
+    if (!bin) return Promise.resolve('Claude Code not found. Install it and sign in, or set its path in Settings.');
+    return new Promise(resolve => {
+        execFile(bin, ['--version'], { timeout: 30_000, windowsHide: true }, err =>
+            resolve(err ? `\`${bin} --version\` failed. Check the Claude Code install.` : undefined));
+    });
 }
 
 export class ClaudeRunner implements Runner {
     constructor(private bin: () => string | undefined) {}
 
-    run(cwd: string, args: string[]): Promise<ClaudeResult> {
+    async run(cwd: string, args: string[]): Promise<ClaudeResult> {
         const bin = this.bin();
-        const problem = claudeProblem(bin);
-        if (problem) return Promise.reject(new Error(problem));
+        const problem = await claudeProblem(bin);
+        if (problem) throw new Error(problem);
 
         return new Promise((resolve, reject) => {
             const child = spawn(bin!, args, { cwd, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });

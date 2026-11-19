@@ -13,6 +13,7 @@ import { SystemStyles } from './prompts';
 import { AgentTaskManager } from './services/agents/AgentTaskManager';
 import { AgentNotifications } from './services/agents/AgentNotifications';
 import { ClaudeRunner, resolveClaudePath } from './services/agents/ClaudeRunner';
+import { registerAgentIpc } from './services/agents/agentIpc';
 import { parseAgentCommand } from './services/agents/claudeCli';
 
 
@@ -44,7 +45,7 @@ if (!gotTheLock) {
 } else {
     app.on('second-instance', (event, commandLine, workingDirectory) => {
         // Someone tried to run a second instance, we should focus our window.
-        // Agent commands run in the background, so they leave the window alone.
+        // Agent commands bring up the agent panel themselves.
         if (windowManager && !parseAgentCommand(commandLine)) {
             const win = windowManager.getWindow();
             if (win) {
@@ -93,9 +94,12 @@ if (!gotTheLock) {
         fileManager = new FileManager(store);
 
         app.setAppUserModelId('com.aralde.tactio');
-        const notifications = new AgentNotifications();
+        const notifications = new AgentNotifications(
+            task => windowManager.showAgent(task.dir),
+            () => windowManager.sendAgentTasks(agentTasks.list())
+        );
         agentTasks = new AgentTaskManager(store, new ClaudeRunner(() => resolveClaudePath(store.get('claudePath'))), notifications);
-        notifications.attach(agentTasks);
+        registerAgentIpc(store, windowManager, agentTasks);
         handleAgentCommand(process.argv);
 
         app.on('activate', () => {
@@ -122,7 +126,8 @@ function handleAgentCommand(argv: string[]) {
     const command = parseAgentCommand(argv);
     if (!command || !agentTasks) return;
     try {
-        if (command.kind === 'start') agentTasks.start(command.dir, command.intent);
+        if (command.kind === 'open') windowManager.showAgent(command.dir);
+        else if (command.kind === 'start') agentTasks.start(command.dir, command.intent);
         else agentTasks.refine(command.id, command.text);
     } catch (e) {
         console.error('[Agent] Command failed:', e);
@@ -218,6 +223,7 @@ ipcMain.handle('get-settings', () => {
         promptVariables: s.get('promptVariables') || [],
 
         generateMetadata: s.get('generateMetadata') !== false,
+        claudePath: s.get('claudePath') || '',
         actions: s.get('actions') || []
     };
 });
@@ -248,6 +254,7 @@ ipcMain.handle('save-settings', (event, newSettings) => {
     if (newSettings.actions !== undefined) store.set('actions', newSettings.actions);
     if (newSettings.promptVariables !== undefined) store.set('promptVariables', newSettings.promptVariables);
     if (newSettings.generateMetadata !== undefined) store.set('generateMetadata', newSettings.generateMetadata);
+    if (newSettings.claudePath !== undefined) store.set('claudePath', newSettings.claudePath);
 
     // Notify renderers
     windowManager.sendConfig(store.getAll());

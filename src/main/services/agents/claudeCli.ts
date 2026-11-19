@@ -190,10 +190,14 @@ export function unexpectedChanges(approved: Change[], done: Change[]): Change[] 
 }
 
 export type AgentCommand =
+    | { kind: 'open'; dir: string }
     | { kind: 'start'; dir: string; intent: string }
     | { kind: 'answer'; id: string; text: string };
 
-/** Reads `--agent <dir> --intent <text>` or `--agent-answer <id> <text>` from a command line. */
+/**
+ * Reads `--agent <dir>` (the folder menu: open the agent panel there), `--agent <dir> --intent <text>`
+ * or `--agent-answer <id> <text>` from a command line.
+ */
 export function parseAgentCommand(argv: string[]): AgentCommand | undefined {
     const after = (flag: string) => {
         const i = argv.indexOf(flag);
@@ -204,6 +208,7 @@ export function parseAgentCommand(argv: string[]): AgentCommand | undefined {
     const dir = after('--agent')?.[0];
     const intent = after('--intent')?.[0];
     if (dir && intent) return { kind: 'start', dir, intent };
+    if (dir) return { kind: 'open', dir };
     return undefined;
 }
 

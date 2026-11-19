@@ -89,6 +89,19 @@ export class WindowManager {
         });
     }
 
+    /** Shows the window with the agent panel open, on `dir` when given. */
+    showAgent(dir?: string) {
+        if (!this.mainWindow) return;
+        if (!this.mainWindow.isVisible()) this.showAtCursor();
+        this.mainWindow.show();
+        this.mainWindow.focus();
+        this.mainWindow.webContents.send('agent-open', dir || '');
+    }
+
+    sendAgentTasks(tasks: any[]) {
+        this.mainWindow?.webContents.send('agent-tasks', tasks);
+    }
+
     hide() {
         this.mainWindow?.hide();
     }
