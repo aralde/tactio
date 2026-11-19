@@ -10,3 +10,4 @@ actions
 .vscode/
 .claude/
 dist-test
+dist-build-*/

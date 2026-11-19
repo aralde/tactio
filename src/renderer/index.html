@@ -96,11 +96,22 @@
             </div>
 
             <div style="margin-top: 15px; border-top: 1px solid #444; padding-top: 10px;">
-                <label for="claude-path-input">Claude Code path (folder agent):</label>
+                <label for="agent-cli-select">Folder agent runs on:</label>
+                <select id="agent-cli-select">
+                    <option value="claude">Claude Code</option>
+                    <option value="opencode">OpenCode</option>
+                    <option value="agy">Antigravity CLI (agy)</option>
+                </select>
+                <label for="claude-path-input" id="agent-path-label">Claude Code path:</label>
                 <div class="input-group">
                     <input type="text" id="claude-path-input" placeholder="Auto-detect">
-                    <button id="claude-path-btn" title="Browse">...</button>
+                    <button id="claude-path-btn" title="Browse" aria-label="Browse for the agent program">...</button>
                 </div>
+                <div id="agent-model-row" class="hidden">
+                    <label for="agent-model-input">Model:</label>
+                    <input type="text" id="agent-model-input" placeholder="The CLI's default">
+                </div>
+                <p id="agent-cli-note" class="hidden" style="margin: 4px 0 8px; font-size: 12px; opacity: 0.8;"></p>
                 <div id="folder-menu-row" style="display: flex; align-items: center;">
                     <input type="checkbox" id="folder-menu-check" style="margin-right: 8px;">
                     <label for="folder-menu-check" style="margin: 0; cursor: pointer;">Add Tactio to the folder right-click menu</label>

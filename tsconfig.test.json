@@ -6,6 +6,8 @@
   },
   "include": [
     "src/main/services/agents/claudeCli.ts",
+    "src/main/services/agents/opencodeCli.ts",
+    "src/main/services/agents/agyCli.ts",
     "src/main/services/agents/AgentTaskManager.ts",
     "src/main/services/agents/folderMenu.ts",
     "test/**/*"

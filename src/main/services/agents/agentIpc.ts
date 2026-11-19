@@ -3,7 +3,10 @@ import { execFile } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import { AgentTaskManager } from './AgentTaskManager';
-import { claudeProblem, resolveClaudePath } from './ClaudeRunner';
+import { AgentSchedules } from './AgentSchedules';
+import { saveAnswer, withFolderContext } from './folderContext';
+import { AgyRunner, ClaudeRunner, OpencodeRunner, Runner, cliProblem, resolveCliPath } from './agentRunners';
+import { AgentCli, CLI_NAMES, isAgentCli } from './claudeCli';
 import { MENU_KEYS, addMenuCalls, removeMenuCalls } from './folderMenu';
 import { AgentWindow } from '../window/AgentWindow';
 
@@ -43,7 +46,30 @@ async function setFolderMenu(enabled: boolean): Promise<boolean> {
     return true;
 }
 
-export function registerAgentIpc(store: any, agentWindow: AgentWindow, tasks: AgentTaskManager) {
+const PATH_KEYS: Record<AgentCli, string> = { claude: 'claudePath', opencode: 'opencodePath', agy: 'agyPath' };
+
+/** The CLI new tasks run on, from Settings; Claude Code when unset. */
+export function currentAgentCli(store: any): AgentCli {
+    const saved = store.get('agentCli');
+    return isAgentCli(saved) ? saved : 'claude';
+}
+
+const binFor = (store: any, cli: AgentCli) => () => resolveCliPath(cli, store.get(PATH_KEYS[cli]));
+
+/**
+ * One runner per CLI, each reading its path and model from Settings when it runs, and each given
+ * the folder's inventory and Office text before it starts.
+ */
+export function agentRunners(store: any): (cli: AgentCli) => Runner {
+    const runners: Record<AgentCli, Runner> = {
+        claude: withFolderContext(new ClaudeRunner(binFor(store, 'claude'))),
+        opencode: withFolderContext(new OpencodeRunner(binFor(store, 'opencode'), () => store.get('opencodeModel'))),
+        agy: withFolderContext(new AgyRunner(binFor(store, 'agy'), () => store.get('agyModel')))
+    };
+    return cli => runners[cli];
+}
+
+export function registerAgentIpc(store: any, agentWindow: AgentWindow, tasks: AgentTaskManager, schedules: AgentSchedules, onSchedulesChanged: () => void) {
     ipcMain.handle('agent-get', (event, id: string) => tasks.get(id));
     ipcMain.handle('agent-start', (event, dir: string, intent: string) => tasks.start(requireFolder(dir), intent).id);
     ipcMain.handle('agent-retry', (event, id: string) => {
@@ -59,8 +85,9 @@ export function registerAgentIpc(store: any, agentWindow: AgentWindow, tasks: Ag
     ipcMain.on('agent-hide', () => agentWindow.hide());
 
     ipcMain.handle('agent-status', async () => {
-        const bin = resolveClaudePath(store.get('claudePath'));
-        return { path: bin || '', problem: await claudeProblem(bin) };
+        const cli = currentAgentCli(store);
+        const bin = binFor(store, cli)();
+        return { cli, name: CLI_NAMES[cli], path: bin || '', problem: await cliProblem(cli, bin) };
     });
 
     ipcMain.handle('agent-select-folder', async () => {
@@ -70,8 +97,9 @@ export function registerAgentIpc(store: any, agentWindow: AgentWindow, tasks: Ag
         return res.canceled ? null : res.filePaths[0];
     });
 
-    ipcMain.handle('agent-select-claude', async (event) => {
-        const filters = process.platform === 'win32' ? [{ name: 'Claude Code', extensions: ['exe'] }] : [];
+    ipcMain.handle('agent-select-claude', async (event, cli?: AgentCli) => {
+        const name = CLI_NAMES[isAgentCli(cli) ? cli : 'claude'];
+        const filters = process.platform === 'win32' ? [{ name, extensions: ['exe'] }] : [];
         const res = await dialog.showOpenDialog({ properties: ['openFile'], filters });
         return res.canceled ? null : res.filePaths[0];
     });
@@ -82,4 +110,26 @@ export function registerAgentIpc(store: any, agentWindow: AgentWindow, tasks: Ag
     });
 
     ipcMain.handle('agent-folder-menu-set', (event, enabled: boolean) => setFolderMenu(enabled));
+
+    ipcMain.handle('agent-save-answer', (event, id: string) => {
+        const task = tasks.get(id);
+        if (!task?.proposal?.answer) throw new Error('This task has no answer to save.');
+        return saveAnswer(requireFolder(task.dir), task.intent, task.proposal.answer);
+    });
+
+    ipcMain.handle('agent-repeat-get', (event, id: string) => {
+        const task = tasks.get(id);
+        return Boolean(task && schedules.find(task.dir, task.intent));
+    });
+
+    // Turns weekly repetition of the task's request on or off, and returns whether it is on.
+    ipcMain.handle('agent-repeat-set', (event, id: string, on: boolean) => {
+        const task = tasks.get(id);
+        if (!task) throw new Error(`No task ${id}`);
+        const existing = schedules.find(task.dir, task.intent);
+        if (on && !existing) schedules.add(task.dir, task.intent);
+        if (!on && existing) schedules.remove(existing.id);
+        onSchedulesChanged();
+        return on;
+    });
 }

@@ -25,9 +25,12 @@ export interface WindowAPI {
     agentApprove: (id: string) => Promise<void>;
     agentCancel: (id: string) => Promise<void>;
     agentUndo: (id: string) => Promise<void>;
-    agentStatus: () => Promise<{ path: string; problem?: string }>;
+    agentSaveAnswer: (id: string) => Promise<string>;
+    agentRepeatGet: (id: string) => Promise<boolean>;
+    agentRepeatSet: (id: string, on: boolean) => Promise<boolean>;
+    agentStatus: () => Promise<{ cli: AgentCli; name: string; path: string; problem?: string }>;
     agentSelectFolder: () => Promise<string | null>;
-    agentSelectClaude: () => Promise<string | null>;
+    agentSelectClaude: (cli?: AgentCli) => Promise<string | null>;
     agentFolderMenuGet: () => Promise<{ supported: boolean; enabled: boolean }>;
     agentFolderMenuSet: (enabled: boolean) => Promise<boolean>;
     agentFit: (height: number) => void;
@@ -41,18 +44,23 @@ export interface AgentChange {
     path: string;
     to?: string;
     detail?: string;
+    tool?: string;
+    args?: string[];
 }
+
+export type AgentCli = 'claude' | 'opencode' | 'agy';
 
 export interface AgentTask {
     id: string;
     dir: string;
     intent: string;
-    state: 'proposing' | 'awaiting_input' | 'proposed' | 'applying' | 'applied' | 'undoing' | 'undone' | 'cancelled' | 'failed';
+    state: 'proposing' | 'awaiting_input' | 'proposed' | 'answered' | 'applying' | 'applied' | 'undoing' | 'undone' | 'cancelled' | 'failed';
     proposal?: {
         summary: string;
         plan: string[];
         changes: AgentChange[];
         questions?: { question: string; hint?: string; options: string[] }[];
+        answer?: string;
     };
     applied?: { done: AgentChange[]; failed: { change: AgentChange; reason: string }[] };
     unexpected?: AgentChange[];
