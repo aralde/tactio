@@ -4,7 +4,6 @@ import { SettingsManager } from "./managers/SettingsManager";
 import { HistoryManager } from "./managers/HistoryManager";
 import { ActionsManager } from "./managers/ActionsManager";
 import { PromptManager } from "./managers/PromptManager";
-import { AgentPanel } from "./managers/AgentPanel";
 
 // Wrap everything in an async IIFE to allow top-level await and error handling
 (async () => {
@@ -27,8 +26,6 @@ import { AgentPanel } from "./managers/AgentPanel";
 
         settingsManager = new SettingsManager();
         if (window.api && window.api.log) window.api.log('SettingsManager initialized');
-
-        new AgentPanel();
 
         // --- Core Logic Handlers ---
         const handlePaste = async (text: string) => {
@@ -183,7 +180,6 @@ import { AgentPanel } from "./managers/AgentPanel";
             if (document.querySelector('.modal:not(.hidden)')) return;
             if (!document.getElementById('settings-modal')?.classList.contains('hidden')) return;
             if (!document.getElementById('prompt-manager-modal')?.classList.contains('hidden')) return;
-            if (!document.getElementById('agent-modal')?.classList.contains('hidden')) return;
 
             if (uiManager.actionsList.classList.contains('disabled-mode')) return;
 
