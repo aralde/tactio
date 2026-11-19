@@ -21,5 +21,23 @@ contextBridge.exposeInMainWorld('api', {
     copyToClipboard: (text: string) => ipcRenderer.invoke('copy-to-clipboard', text),
     openPromptCatalog: () => ipcRenderer.send('open-prompt-catalog'),
     openExternal: (url: string) => ipcRenderer.send('open-external', url),
-    log: (message: string, data?: any) => ipcRenderer.send('log', message, data)
+    log: (message: string, data?: any) => ipcRenderer.send('log', message, data),
+
+    agentList: () => ipcRenderer.invoke('agent-list'),
+    agentStart: (dir: string, intent: string) => ipcRenderer.invoke('agent-start', dir, intent),
+    agentRefine: (id: string, text: string) => ipcRenderer.invoke('agent-refine', id, text),
+    agentApprove: (id: string) => ipcRenderer.invoke('agent-approve', id),
+    agentCancel: (id: string) => ipcRenderer.invoke('agent-cancel', id),
+    agentUndo: (id: string) => ipcRenderer.invoke('agent-undo', id),
+    agentStatus: () => ipcRenderer.invoke('agent-status'),
+    agentSelectFolder: () => ipcRenderer.invoke('agent-select-folder'),
+    agentSelectClaude: () => ipcRenderer.invoke('agent-select-claude'),
+    agentFolderMenuGet: () => ipcRenderer.invoke('agent-folder-menu-get'),
+    agentFolderMenuSet: (enabled: boolean) => ipcRenderer.invoke('agent-folder-menu-set', enabled),
+    onAgentTasks: (callback: (tasks: any[]) => void) => {
+        ipcRenderer.on('agent-tasks', (event, tasks) => callback(tasks));
+    },
+    onAgentOpen: (callback: (dir: string) => void) => {
+        ipcRenderer.on('agent-open', (event, dir) => callback(dir));
+    }
 });
