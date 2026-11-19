@@ -60,7 +60,71 @@ function folderName(path: string): string {
 }
 
 function describe(c: AgentChange): string {
+    if (c.op === 'run') return `run ${c.tool}  ${c.path} → ${c.to}`;
     return c.to ? `${c.op}  ${c.path} → ${c.to}` : `${c.op}  ${c.path}`;
+}
+
+/** `**bold**` and `code` inside a line, as text nodes so nothing in the answer runs as HTML. */
+function inline(text: string): Node[] {
+    return text.split(/(\*\*[^*]+\*\*|`[^`]+`)/).filter(Boolean).map(part => {
+        if (part.startsWith('**') && part.endsWith('**')) return el('strong', undefined, part.slice(2, -2));
+        if (part.startsWith('`') && part.endsWith('`')) return el('code', undefined, part.slice(1, -1));
+        return document.createTextNode(part);
+    });
+}
+
+/** A small Markdown reader for answers: headings, lists, tables and paragraphs. */
+function markdown(text: string): HTMLElement {
+    const root = el('div', 'answer');
+    let list: HTMLElement | null = null;
+    let table: HTMLElement | null = null;
+    for (const raw of text.split(/\r?\n/)) {
+        const line = raw.trimEnd();
+        const bullet = /^\s*(?:[-*+]|\d+[.)])\s+(.*)$/.exec(line);
+        const heading = /^(#{1,4})\s+(.*)$/.exec(line);
+        const row = /^\s*\|(.*)\|\s*$/.exec(line);
+        if (!bullet) list = null;
+        if (!row) table = null;
+        if (!line.trim()) continue;
+        if (row) {
+            if (/^[\s|:-]+$/.test(row[1])) continue;
+            if (!table) root.append(table = el('table'));
+            const tr = el('tr');
+            for (const cell of row[1].split('|')) {
+                const td = el('td');
+                td.append(...inline(cell.trim()));
+                tr.append(td);
+            }
+            table.append(tr);
+        } else if (heading) {
+            const h = el('p', 'answer-heading');
+            h.append(...inline(heading[2]));
+            root.append(h);
+        } else if (bullet) {
+            if (!list) root.append(list = el(/^\s*\d/.test(line) ? 'ol' : 'ul'));
+            const li = el('li');
+            li.append(...inline(bullet[1]));
+            list.append(li);
+        } else {
+            const p = el('p');
+            p.append(...inline(line));
+            root.append(p);
+        }
+    }
+    return root;
+}
+
+/** A toggle for repeating the task's request weekly. */
+async function repeatButton(task: AgentTask): Promise<HTMLButtonElement> {
+    let on = await window.api.agentRepeatGet(task.id);
+    const btn = el('button', 'link');
+    const sync = () => (btn.textContent = on ? 'Repeats weekly · stop' : 'Repeat weekly');
+    btn.onclick = async () => {
+        on = await window.api.agentRepeatSet(task.id, !on);
+        sync();
+    };
+    sync();
+    return btn;
 }
 
 function view(heading: string, sub: string, content: Node[], footer: Node[]) {
@@ -112,9 +176,9 @@ async function compose() {
     folder.append(icon('folder'), path, change);
 
     const input = el('textarea');
-    input.placeholder = 'e.g. Sort these into one folder per year, using the date each photo was taken';
+    input.placeholder = 'Ask about this folder or say what to do, e.g. "Which files are duplicates?" or "Turn the invoices into a CSV"';
 
-    const plan = button('Plan it', 'primary', async () => {
+    const plan = button('Ask', 'primary', async () => {
         const intent = input.value.trim();
         if (!dir || !intent) return;
         taskId = await window.api.agentStart(dir, intent);
@@ -132,12 +196,12 @@ async function compose() {
     const status = await window.api.agentStatus();
     if (status.problem) content.unshift(el('div', 'problem', status.problem));
 
-    view('Ask the agent', '', content, [footRow(el('span', 'hint', 'Ctrl+Enter'), spacer(), button('Cancel', 'ghost', hide), plan)]);
+    view('Ask the agent', `Runs on ${status.name}`, content, [footRow(el('span', 'hint', 'Ctrl+Enter'), spacer(), button('Cancel', 'ghost', hide), plan)]);
     input.focus();
 }
 
 function working(task: AgentTask) {
-    const what = task.state === 'proposing' ? 'Reading the folder and working out a plan.'
+    const what = task.state === 'proposing' ? 'Reading the folder and working out an answer or a plan.'
         : task.state === 'applying' ? 'Making the changes.'
         : 'Putting things back.';
     const bars = [92, 78, 54].map(w => {
@@ -285,7 +349,48 @@ function plan(task: AgentTask) {
     run.focus();
 }
 
-function result(task: AgentTask) {
+async function answered(task: AgentTask) {
+    const proposal = task.proposal!;
+    const content: Node[] = [markdown(proposal.answer!)];
+
+    const adjust = el('div', 'adjust');
+    const input = el('input', 'text-input');
+    input.placeholder = 'Ask a follow-up';
+    const send = el('button', 'icon-btn');
+    send.setAttribute('aria-label', 'Send follow-up');
+    send.append(icon('send'));
+    const follow = async () => {
+        const text = input.value.trim();
+        if (text) await window.api.agentRefine(task.id, text);
+    };
+    send.onclick = follow;
+    input.onkeydown = (e) => {
+        if (e.key === 'Enter') follow();
+    };
+    adjust.append(input, send);
+    content.push(adjust);
+
+    const saved = el('p', 'note');
+    const save = button('Save as .md', 'ghost', async () => {
+        const file = await window.api.agentSaveAnswer(task.id);
+        saved.textContent = `Saved to ${file}`;
+        if (!saved.isConnected) body.firstElementChild?.append(saved);
+    });
+    const copy = button('Copy', 'ghost', async () => {
+        await window.api.copyToClipboard(proposal.answer!);
+        copy.textContent = 'Copied';
+    });
+    view(proposal.summary || task.intent, `In ${folderName(task.dir)}`, content,
+        [footRow(copy, save, spacer(), button('Close', 'primary', hide)), footCenter(await repeatButton(task))]);
+}
+
+function footCenter(...nodes: Node[]): HTMLElement {
+    const row = el('div', 'foot-center');
+    row.append(...nodes);
+    return row;
+}
+
+async function result(task: AgentTask) {
     const folder = folderName(task.dir);
     const close = button('Close', 'primary', hide);
     const retry = button('Try again', 'ghost', async () => {
@@ -299,8 +404,9 @@ function result(task: AgentTask) {
         for (const f of task.applied!.failed) content.push(el('p', 'warn', `Couldn't ${describe(f.change)}: ${f.reason}`));
         if (task.unexpected!.length) content.push(el('p', 'warn', `Also did, without it being in the plan: ${task.unexpected!.map(describe).join(', ')}`));
         const n = task.applied!.done.length;
-        return view('Done', `${n} change${n === 1 ? '' : 's'} in ${folder} · ${task.intent}`, content,
-            [footRow(button('Undo', 'ghost', () => window.api.agentUndo(task.id)), spacer(), close)]);
+        const undo = n ? [button('Undo', 'ghost', () => window.api.agentUndo(task.id))] : [];
+        return view(n ? 'Done' : 'Nothing changed', `${n} change${n === 1 ? '' : 's'} in ${folder} · ${task.intent}`, content,
+            [footRow(...undo, spacer(), close), footCenter(await repeatButton(task))]);
     }
     if (task.state === 'undone') {
         const content = task.undone!.failed.map(f => el('p', 'warn', `Couldn't revert ${describe(f.change)}: ${f.reason}`));
@@ -324,6 +430,8 @@ function render(task: AgentTask) {
             return questions(task);
         case 'proposed':
             return plan(task);
+        case 'answered':
+            return answered(task);
         default:
             return result(task);
     }

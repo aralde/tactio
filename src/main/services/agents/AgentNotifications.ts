@@ -18,6 +18,8 @@ export class AgentNotifications implements AgentNotifier {
         switch (task.state) {
             case 'proposed':
                 return this.show(task, `Plan ready · ${folder}`, task.proposal!.summary);
+            case 'answered':
+                return this.show(task, `Answer ready · ${folder}`, task.proposal!.answer!.replace(/[#*_`>]/g, '').trim().slice(0, 120));
             case 'awaiting_input':
                 return this.show(task, `A question first · ${folder}`, task.proposal!.questions![0].question);
             case 'applied': {

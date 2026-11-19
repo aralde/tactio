@@ -1,8 +1,11 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert/strict';
 import {
-    Change, ClaudeResult, applyArgs, isInside, outsideChange, parseAgentCommand, parseResult, proposeArgs, unexpectedChanges
+    AgentCli, AgentStep, Change, ClaudeResult, applyArgs, claudeArgs, cliCandidates, isInside, outsideChange, parseAgentCommand,
+    parseResult, proposeArgs, standalonePrompt, unexpectedChanges
 } from '../src/main/services/agents/claudeCli';
+import { extractObject, opencodeArgs, opencodeEnv, opencodeResult, parseOpencode } from '../src/main/services/agents/opencodeCli';
+import { AGY_AGENT, agyAgent, agyArgs, agySettings, fileRules, otherCommands, parseAgy } from '../src/main/services/agents/agyCli';
 import { AgentTask, AgentTaskManager } from '../src/main/services/agents/AgentTaskManager';
 import { addMenuCalls, menuCommand, removeMenuCalls } from '../src/main/services/agents/folderMenu';
 
@@ -50,20 +53,33 @@ test('parseAgentCommand reads start and answer commands', () => {
     assert.equal(parseAgentCommand(['Tactio.exe']), undefined);
 });
 
-function harness(results: ClaudeResult[]) {
+function harness(results: ClaudeResult[], cli: AgentCli = 'claude') {
     const data: Record<string, any> = {};
     const calls: string[][] = [];
+    const steps: AgentStep[] = [];
+    const used: AgentCli[] = [];
     const seen: string[] = [];
-    const runner = { run: async (_cwd: string, args: string[]) => { calls.push(args); return results.shift()!; } };
+    // Records each step as Claude's arguments too, so the resume checks read like the real run.
+    const runners = (c: AgentCli) => ({
+        run: async (_cwd: string, step: AgentStep) => {
+            used.push(c);
+            steps.push(step);
+            if (c === 'claude') calls.push(claudeArgs(step));
+            return results.shift()!;
+        }
+    });
     const manager = new AgentTaskManager(
         { get: k => data[k], set: (k, v) => (data[k] = v) },
-        runner,
-        { changed: (t: AgentTask) => seen.push(t.state) }
+        runners,
+        { changed: (t: AgentTask) => seen.push(t.state) },
+        () => cli
     );
-    return { manager, calls, seen, data };
+    return { manager, calls, steps, used, seen, data };
 }
 
-const tick = () => new Promise(r => setImmediate(r));
+const tick = async () => {
+    for (let i = 0; i < 5; i++) await new Promise(r => setImmediate(r));
+};
 
 test('a task goes from proposal to applied to undone', async () => {
     const change: Change = { op: 'rename', path: 'a.jpg', to: 'b.jpg' };
@@ -112,7 +128,7 @@ test('a proposal that leaves the folder fails without asking', async () => {
 
 test('tasks left running by a restart are marked failed', () => {
     const data: Record<string, any> = { agentTasks: [{ id: 'a', state: 'applying' }] };
-    const manager = new AgentTaskManager({ get: k => data[k], set: (k, v) => (data[k] = v) }, { run: async () => ({ isError: true, text: '' }) }, { changed: () => {} });
+    const manager = new AgentTaskManager({ get: k => data[k], set: (k, v) => (data[k] = v) }, () => ({ run: async () => ({ isError: true, text: '' }) }), { changed: () => {} });
     assert.equal(manager.get('a')!.state, 'failed');
 });
 
@@ -138,4 +154,129 @@ test('an expired login becomes an actionable message, and the task can be retrie
     await tick();
     assert.equal(again.intent, 'tidy');
     assert.equal(again.state, 'proposed');
+});
+
+test('a task keeps the CLI it started on, and its refine carries the request and the last proposal', async () => {
+    const proposal = { summary: '', plan: [], changes: [], questions: [{ question: 'Group by?', options: ['Date', 'Type'] }] };
+    const { manager, steps, used } = harness([
+        { sessionId: 'ses_1', isError: false, text: '', output: proposal },
+        { sessionId: 'ses_1', isError: false, text: '', output: { summary: 'ok', plan: ['Make 2026'], changes: [{ op: 'mkdir', path: '2026' }] } }
+    ], 'opencode');
+    const task = manager.start('/tmp/f', 'sort');
+    await tick();
+    assert.equal(task.cli, 'opencode');
+    manager.refine(task.id, 'by date');
+    await tick();
+    assert.deepEqual(used, ['opencode', 'opencode']);
+    assert.deepEqual(steps[1], { kind: 'refine', intent: 'sort', feedback: 'by date', previous: proposal, sessionId: 'ses_1', tools: [] });
+    const prompt = standalonePrompt(steps[1]);
+    assert.match(prompt, /sort/);
+    assert.match(prompt, /Group by\?/);
+    assert.match(prompt, /by date/);
+});
+
+test('a Claude step without a session fails the task instead of throwing', async () => {
+    const data: Record<string, any> = { agentTasks: [{ id: 'old', dir: '/tmp/f', intent: 'x', state: 'proposed', proposal: { summary: '', plan: [], changes: [{ op: 'mkdir', path: 'x' }] } }] };
+    const runner = { run: async (_cwd: string, step: AgentStep): Promise<ClaudeResult> => { claudeArgs(step); return { isError: true, text: '' }; } };
+    const manager = new AgentTaskManager({ get: k => data[k], set: (k, v) => (data[k] = v) }, () => runner, { changed: () => {} });
+    manager.approve('old');
+    await tick();
+    assert.equal(manager.get('old')!.state, 'failed');
+    assert.match(manager.get('old')!.error!, /no Claude session/);
+});
+
+test('an expired OpenCode key points to its own login', async () => {
+    const { manager } = harness([{ isError: true, text: 'This API key has expired. Create a new API key in OpenCode Console' }], 'opencode');
+    const task = manager.start('/tmp/f', 'tidy');
+    await tick();
+    assert.match(task.error!, /opencode auth login/);
+});
+
+const applyStep: AgentStep = { kind: 'apply', taskId: 't1', changes: [{ op: 'rename', path: 'a', to: 'b' }] };
+const proposeStep: AgentStep = { kind: 'propose', intent: 'rename the photos' };
+
+test('OpenCode reads only while proposing, and writes with mv, mkdir and cp only', () => {
+    const read = JSON.parse(opencodeEnv(proposeStep, 'C:\\f', {}).OPENCODE_CONFIG_CONTENT!).agent.tactio.permission;
+    assert.equal(read['*'], 'deny');
+    assert.equal(read.read, 'allow');
+    assert.equal(read.edit, undefined);
+    assert.equal(read.bash, undefined);
+    const env = opencodeEnv(applyStep, 'C:\\f', {});
+    assert.equal(env.PWD, 'C:\\f');
+    const write = JSON.parse(env.OPENCODE_CONFIG_CONTENT!).agent.tactio.permission;
+    assert.equal(write.edit, 'allow');
+    assert.deepEqual(write.bash, { '*': 'deny', 'mv *': 'allow', 'mkdir *': 'allow', 'cp *': 'allow' });
+    assert.equal(write.external_directory, 'deny');
+});
+
+test('OpenCode gets the schema in the prompt, and a reminder resumes its session', () => {
+    const args = opencodeArgs(proposeStep, 'opencode/big-pickle');
+    assert.deepEqual(args.slice(0, 5), ['run', '--format', 'json', '--agent', 'tactio']);
+    assert.equal(args[args.indexOf('--model') + 1], 'opencode/big-pickle');
+    assert.match(args[args.length - 1], /"required":\["summary","plan","changes"\]/);
+    const again = opencodeArgs(proposeStep, undefined, { sessionId: 'ses_9', message: 'only the JSON' });
+    assert.equal(again[again.indexOf('--session') + 1], 'ses_9');
+    assert.equal(again[again.length - 1], 'only the JSON');
+});
+
+test('OpenCode results are read from the last message', () => {
+    const stdout = [
+        '{"type":"step_start","sessionID":"ses_1"}',
+        '{"type":"text","sessionID":"ses_1","part":{"text":"Looking"}}',
+        JSON.stringify({ type: 'text', sessionID: 'ses_1', part: { text: '```json\n{"done":[],"failed":[]}\n```' } })
+    ].join('\n');
+    const parsed = parseOpencode(stdout);
+    assert.equal(parsed.sessionId, 'ses_1');
+    assert.deepEqual(extractObject(parsed.text), { done: [], failed: [] });
+    assert.deepEqual(opencodeResult(parsed, { required: ['done', 'failed'] }).output, { done: [], failed: [] });
+    assert.ok(opencodeResult({ text: '{"summary":"x"}' }, { required: ['summary', 'plan'] }).isError);
+    const error = parseOpencode('{"type":"error","sessionID":"s","error":{"name":"APIError","data":{"message":"This API key has expired."}}}');
+    assert.equal(opencodeResult(error, {}).text, 'This API key has expired.');
+});
+
+test('agy proposes with read tools only and no commands', () => {
+    const args = agyArgs(proposeStep);
+    assert.equal(args[args.indexOf('--agent') + 1], AGY_AGENT);
+    assert.equal(args[args.indexOf('--output-format') + 1], 'stream-json');
+    assert.ok(JSON.parse(args[args.indexOf('--json-schema') + 1]).required.includes('changes'));
+    assert.match(agyAgent(proposeStep), /tools: \[finish, view_file, list_dir, grep_search, find_by_name\]/);
+    const settings = agySettings(proposeStep, 'C:\\f', () => []) as { permissions: { allow: string[]; deny: string[] }; allowNonWorkspaceAccess: boolean };
+    assert.deepEqual(settings.permissions.allow, ['read_file(C:/f)', 'read_file(C:/)']);
+    assert.ok(settings.permissions.deny.includes('command(*)'));
+    assert.equal(settings.allowNonWorkspaceAccess, false);
+});
+
+test('agy writes inside the folder and starts only mv, mkdir and cp', () => {
+    assert.match(agyAgent(applyStep), /write_to_file/);
+    const settings = agySettings(applyStep, 'C:\\f', () => []) as { permissions: { allow: string[]; deny: string[] } };
+    assert.deepEqual(settings.permissions.allow.slice(2), ['write_file(C:\\f)', 'command(cp)', 'command(mkdir)', 'command(mv)']);
+    const other = new RegExp(otherCommands(['cp', 'mkdir', 'mv']));
+    for (const program of ['rm', 'del', 'Remove-Item', 'mvx', 'm', 'mk', 'c', 'powershell']) assert.ok(other.test(program), program);
+    for (const program of ['cp', 'mkdir', 'mv']) assert.ok(!other.test(program), program);
+});
+
+test('agy results come from the stream, and a refused permission says which', () => {
+    const ok = parseAgy([
+        '{"event":"init","conversation_id":"c1","init":{}}',
+        '{"event":"result","result":{"conversation_id":"c1","status":"SUCCESS","response":"{}","structured_output":{"done":[],"failed":[]}}}'
+    ].join('\n'));
+    assert.deepEqual(ok, { sessionId: 'c1', output: { done: [], failed: [] }, isError: false, text: '{}' });
+    const refused = parseAgy('{"event":"result","result":{"status":"SUCCESS","denied_actions":[{"action":"command(rm)"}]}}');
+    assert.ok(refused.isError);
+    assert.match(refused.text, /command\(rm\)/);
+    assert.match(parseAgy('', 'boom').text, /boom/);
+});
+
+test('binaries resolve to an .exe beside an npm shim', () => {
+    const env = { USERPROFILE: 'C:\\Users\\a', LOCALAPPDATA: 'C:\\Users\\a\\AppData\\Local' };
+    assert.ok(cliCandidates('opencode', ['C:\\nodejs\\opencode.cmd'], env).includes('C:\\nodejs\\node_modules\\opencode-ai\\bin\\opencode.exe'));
+    assert.ok(cliCandidates('agy', [], env).includes('C:\\Users\\a\\AppData\\Local\\agy\\bin\\agy.exe'));
+    assert.ok(cliCandidates('claude', [], env).includes('C:\\Users\\a\\.local\\bin\\claude.exe'));
+});
+
+test('agy reads outside the folder are denied one by one, so they never end the run', () => {
+    const tree: Record<string, string[]> = { 'C:\\': ['Users', 'Windows', 'prueba'], 'C:\\Users': ['ariel', 'Public'] };
+    const rules = fileRules('C:\\Users\\ariel', dir => tree[dir] ?? []);
+    assert.deepEqual(rules.allow, ['read_file(C:/Users/ariel)', 'read_file(C:/Users)', 'read_file(C:/)']);
+    assert.deepEqual(rules.deny, ['read_file(C:/Users/Public)', 'read_file(C:/Windows)', 'read_file(C:/prueba)']);
 });

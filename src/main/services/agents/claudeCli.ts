@@ -1,10 +1,14 @@
-export type ChangeOp = 'rename' | 'move' | 'mkdir' | 'create' | 'edit' | 'delete';
+export type ChangeOp = 'rename' | 'move' | 'mkdir' | 'create' | 'edit' | 'delete' | 'run';
 
 export interface Change {
     op: ChangeOp;
     path: string;
     to?: string;
     detail?: string;
+    /** `run` only: the program Tactio runs after approval, from the tools it found installed */
+    tool?: string;
+    /** `run` only: its arguments, with paths relative to the folder */
+    args?: string[];
 }
 
 export interface Question {
@@ -18,6 +22,8 @@ export interface Proposal {
     plan: string[];
     changes: Change[];
     questions?: Question[];
+    /** the reply to a question about the folder, in Markdown, when nothing needs to change */
+    answer?: string;
 }
 
 export interface Applied {
@@ -25,22 +31,51 @@ export interface Applied {
     failed: { change: Change; reason: string }[];
 }
 
-export interface ClaudeResult {
+export interface AgentResult {
     sessionId?: string;
     output?: unknown;
     isError: boolean;
     text: string;
 }
 
+/** Claude's result is the shape every runner returns. */
+export type ClaudeResult = AgentResult;
+
+/** The command-line agents Tactio can drive. */
+export type AgentCli = 'claude' | 'opencode' | 'agy';
+
+export const AGENT_CLIS: AgentCli[] = ['claude', 'opencode', 'agy'];
+
+export const CLI_NAMES: Record<AgentCli, string> = { claude: 'Claude Code', opencode: 'OpenCode', agy: 'Antigravity CLI' };
+
+export function isAgentCli(value: unknown): value is AgentCli {
+    return typeof value === 'string' && (AGENT_CLIS as string[]).includes(value);
+}
+
+/**
+ * One run of the agent. `sessionId` lets Claude resume its own conversation; the other CLIs get
+ * everything the run needs in its prompt, so `intent` and `previous` travel with a refine.
+ */
+export type AgentStep =
+    | { kind: 'propose'; intent: string; tools?: string[] }
+    | { kind: 'refine'; intent: string; feedback: string; previous?: Proposal; sessionId?: string; tools?: string[] }
+    | { kind: 'apply'; taskId: string; changes: Change[]; sessionId?: string }
+    | { kind: 'undo'; taskId: string; done: Change[]; sessionId?: string };
+
 export const TRASH_DIR = '.tactio-trash';
+
+/** Where Tactio leaves what it read for the agent: the folder's inventory and the text of Office files. */
+export const CONTEXT_DIR = `${TRASH_DIR}/context`;
 
 const changeSchema = {
     type: 'object',
     properties: {
-        op: { type: 'string', enum: ['rename', 'move', 'mkdir', 'create', 'edit', 'delete'] },
+        op: { type: 'string', enum: ['rename', 'move', 'mkdir', 'create', 'edit', 'delete', 'run'] },
         path: { type: 'string' },
         to: { type: 'string' },
-        detail: { type: 'string' }
+        detail: { type: 'string' },
+        tool: { type: 'string' },
+        args: { type: 'array', items: { type: 'string' } }
     },
     required: ['op', 'path']
 };
@@ -51,6 +86,7 @@ export const proposalSchema = {
         summary: { type: 'string' },
         plan: { type: 'array', items: { type: 'string' } },
         changes: { type: 'array', items: changeSchema },
+        answer: { type: 'string' },
         questions: {
             type: 'array',
             items: {
@@ -102,13 +138,25 @@ function baseArgs(prompt: string, schema: object, resume?: string): string[] {
     return args;
 }
 
-export function proposePrompt(intent: string): string {
+/** What the prompt says about `run` changes: the tools Tactio found, or that there are none. */
+function toolRules(tools: string[]): string[] {
+    if (!tools.length) return ['No conversion tools are installed, so propose no "run" changes; if one is needed, say in "answer" what the user could install.'];
+    return [
+        `To convert, merge, split or rotate files, propose "run" changes. Tactio runs them itself after the user approves, after every other change. Installed tools: ${tools.join(', ')}.`,
+        'A "run" change has "tool", "args" (relative paths, no shell syntax, no URLs), "path" (the main input) and "to" (the new file it writes, which must not exist yet). Never overwrite or delete the inputs.'
+    ];
+}
+
+export function proposePrompt(intent: string, tools: string[] = []): string {
     return [
         'You work inside the current folder for a desktop app. The user asked:',
         '',
         intent,
         '',
         'Inspect the folder with your read-only tools and work out how to do this. Change nothing yet.',
+        `Tactio left ${CONTEXT_DIR}/inventory.tsv: every file with its size in bytes, when it was modified and, for files that share a size, a sha256 hash (equal hashes are exact duplicates). The text of Word, Excel and PowerPoint files is under ${CONTEXT_DIR}/text/. Use them, and never list anything under ${TRASH_DIR} as a change.`,
+        'If the user asks a question or wants to know something, reply in "answer" in Markdown, in the language they wrote in, and leave "changes" empty. Write a file only when they ask for one.',
+        ...toolRules(tools),
         '"summary" is a title of at most 12 words saying what you will do. "plan" is 2 to 6 short, plain steps saying what you will do, not how.',
         '"changes" lists every exact change. Paths are relative to the current folder and stay inside it: no absolute paths, no "..".',
         'Ops: rename and move need "to"; mkdir, create, edit and delete need only "path"; use "detail" to say what an edit or create writes.',
@@ -149,8 +197,8 @@ export function undoPrompt(taskId: string, done: Change[]): string {
     ].join('\n');
 }
 
-export function proposeArgs(intent: string): string[] {
-    return [...baseArgs(proposePrompt(intent), proposalSchema), '--tools', READ_TOOLS.join(',')];
+export function proposeArgs(intent: string, tools: string[] = []): string[] {
+    return [...baseArgs(proposePrompt(intent, tools), proposalSchema), '--tools', READ_TOOLS.join(',')];
 }
 
 export function refineArgs(sessionId: string, feedback: string): string[] {
@@ -172,11 +220,55 @@ export function undoArgs(taskId: string, sessionId: string, done: Change[]): str
     return writeArgs(undoPrompt(taskId, done), sessionId);
 }
 
-const AUTH_ERROR = /oauth|failed to authenticate|not logged in|please run \/login|invalid api key/i;
+export const writes = (step: AgentStep) => step.kind === 'apply' || step.kind === 'undo';
 
-/** Turns Claude's failure text into something the user can act on. */
-export function friendlyError(text: string): string {
-    if (AUTH_ERROR.test(text)) return 'Your Claude Code login expired or is missing. Open a terminal, run `claude` and use /login, then retry.';
+export function stepSchema(step: AgentStep): object {
+    return writes(step) ? appliedSchema : proposalSchema;
+}
+
+/** The arguments `claude -p` gets for a step; refine, apply and undo resume the proposing session. */
+export function claudeArgs(step: AgentStep): string[] {
+    const session = (id?: string) => {
+        if (!id) throw new Error('This task has no Claude session to continue. Retry it.');
+        return id;
+    };
+    switch (step.kind) {
+        case 'propose': return proposeArgs(step.intent, step.tools);
+        case 'refine': return refineArgs(session(step.sessionId), step.feedback);
+        case 'apply': return applyArgs(step.taskId, session(step.sessionId), step.changes);
+        case 'undo': return undoArgs(step.taskId, session(step.sessionId), step.done);
+    }
+}
+
+/** A refine for a CLI that starts fresh each run: the request and the last proposal come along. */
+export function standaloneRefinePrompt(intent: string, feedback: string, previous?: Proposal, tools: string[] = []): string {
+    const lines = [proposePrompt(intent, tools), ''];
+    if (previous) lines.push('Your previous proposal was:', '', JSON.stringify(previous, null, 2), '');
+    lines.push('The user answered your questions or asked for changes to it:', '', feedback, '', 'Propose again with the same rules. Change nothing yet.');
+    return lines.join('\n');
+}
+
+/** The whole prompt for a step, for CLIs that don't resume Claude's session. */
+export function standalonePrompt(step: AgentStep): string {
+    switch (step.kind) {
+        case 'propose': return proposePrompt(step.intent, step.tools);
+        case 'refine': return standaloneRefinePrompt(step.intent, step.feedback, step.previous, step.tools);
+        case 'apply': return `${applyPrompt(step.taskId, step.changes)}\n${SHELL_RULES}`;
+        case 'undo': return `${undoPrompt(step.taskId, step.done)}\n${SHELL_RULES}`;
+    }
+}
+
+const AUTH_ERROR = /oauth|failed to authenticate|not logged in|please run \/login|invalid api key|api key has expired|unauthorized/i;
+
+const LOGIN_HELP: Record<AgentCli, string> = {
+    claude: 'Your Claude Code login expired or is missing. Open a terminal, run `claude` and use /login, then retry.',
+    opencode: 'Your OpenCode login or API key expired or is missing. Open a terminal, run `opencode auth login`, then retry.',
+    agy: 'Your Antigravity login expired or is missing. Open a terminal, run `agy` once and sign in, then retry.'
+};
+
+/** Turns the agent's failure text into something the user can act on. */
+export function friendlyError(text: string, cli: AgentCli = 'claude'): string {
+    if (AUTH_ERROR.test(text)) return LOGIN_HELP[cli];
     return text;
 }
 
@@ -252,4 +344,20 @@ export function claudeCandidates(env: Record<string, string | undefined>): strin
     if (env.USERPROFILE) out.push(`${env.USERPROFILE}\\.local\\bin\\claude.exe`);
     if (env.APPDATA) out.push(`${env.APPDATA}\\npm\\claude.cmd`);
     return out;
+}
+
+/**
+ * Where each CLI's binary may be, after what `where <name>` lists. An npm install of OpenCode lists
+ * a `.cmd` shim, which would need a shell that mangles the JSON arguments, so the real
+ * `opencode.exe` beside it in `node_modules` is listed instead.
+ */
+export function cliCandidates(cli: AgentCli, listed: string[], env: Record<string, string | undefined>): string[] {
+    if (cli === 'claude') return [...listed, ...claudeCandidates(env)];
+    if (cli === 'agy') return [...listed, ...(env.LOCALAPPDATA ? [`${env.LOCALAPPDATA}\\agy\\bin\\agy.exe`] : [])];
+    const shims = listed.flatMap(p => {
+        const dir = p.replace(/[\\/][^\\/]+$/, '');
+        return dir === p ? [] : [`${dir}\\node_modules\\opencode-ai\\bin\\opencode.exe`];
+    });
+    const home = env.USERPROFILE ? [`${env.USERPROFILE}\\.opencode\\bin\\opencode.exe`] : [];
+    return [...listed, ...shims, ...home];
 }

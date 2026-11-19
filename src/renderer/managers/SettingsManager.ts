@@ -1,4 +1,13 @@
-import { AppConfig } from "../types";
+import { AgentCli, AppConfig } from "../types";
+
+const CLI_LABELS: Record<AgentCli, string> = { claude: 'Claude Code', opencode: 'OpenCode', agy: 'Antigravity CLI' };
+
+/** What each CLI can't be held to as tightly as Claude Code, shown under the picker. */
+const CLI_NOTES: Record<AgentCli, string> = {
+    claude: '',
+    opencode: 'OpenCode has no result schema: Tactio asks for the JSON in the prompt and checks it. Its permissions still allow only reading, editing files and mv, mkdir and cp.',
+    agy: 'Each run gets its own temporary home with your login, so your GEMINI.md and settings are left out. Commands are limited to mv, mkdir and cp.'
+};
 
 export class SettingsManager {
     // Elements
@@ -19,6 +28,15 @@ export class SettingsManager {
     private githubLink = document.getElementById('github-link') as HTMLAnchorElement;
 
     // Folder agent
+    private agentCliSelect = document.getElementById('agent-cli-select') as HTMLSelectElement;
+    private agentPathLabel = document.getElementById('agent-path-label') as HTMLLabelElement;
+    private agentModelRow = document.getElementById('agent-model-row') as HTMLDivElement;
+    private agentModelInput = document.getElementById('agent-model-input') as HTMLInputElement;
+    private agentCliNote = document.getElementById('agent-cli-note') as HTMLParagraphElement;
+    // Each CLI keeps its own path and model while the picker moves between them.
+    private agentPaths: Record<AgentCli, string> = { claude: '', opencode: '', agy: '' };
+    private agentModels: Record<AgentCli, string> = { claude: '', opencode: '', agy: '' };
+    private shownCli: AgentCli = 'claude';
     private claudePathInput = document.getElementById('claude-path-input') as HTMLInputElement;
     private claudePathBtn = document.getElementById('claude-path-btn') as HTMLButtonElement;
     private folderMenuRow = document.getElementById('folder-menu-row') as HTMLDivElement;
@@ -85,9 +103,11 @@ export class SettingsManager {
         }
 
         this.claudePathBtn.onclick = async () => {
-            const path = await window.api.agentSelectClaude();
+            const path = await window.api.agentSelectClaude(this.shownCli);
             if (path) this.claudePathInput.value = path;
         };
+
+        this.agentCliSelect.onchange = () => this.showCli(this.agentCliSelect.value as AgentCli);
 
         if (this.githubLink) {
             this.githubLink.onclick = (e) => {
@@ -113,7 +133,11 @@ export class SettingsManager {
         this.apiKeyInput.value = this.getKeyForService(settings.service);
         this.outputDirInput.value = settings.outputDirectory || '';
         this.generateMetadataCheck.checked = settings.generateMetadata !== false;
-        this.claudePathInput.value = settings.claudePath || '';
+        this.agentPaths = { claude: settings.claudePath || '', opencode: settings.opencodePath || '', agy: settings.agyPath || '' };
+        this.agentModels = { claude: '', opencode: settings.opencodeModel || '', agy: settings.agyModel || '' };
+        this.agentCliSelect.value = settings.agentCli || 'claude';
+        this.shownCli = this.agentCliSelect.value as AgentCli;
+        this.showCli(this.shownCli, false);
 
         const menu = await window.api.agentFolderMenuGet();
         this.folderMenuRow.classList.toggle('hidden', !menu.supported);
@@ -140,7 +164,7 @@ export class SettingsManager {
             model: this.modelSelect.value,
             outputDirectory: this.outputDirInput.value,
             generateMetadata: this.generateMetadataCheck.checked,
-            claudePath: this.claudePathInput.value.trim(),
+            ...this.agentSettings(),
 
             // Specific models
             geminiModel: (this.serviceSelect.value === 'GEMINI') ? this.modelSelect.value : this.currentSettings.geminiModel,
@@ -158,6 +182,36 @@ export class SettingsManager {
                 alert('Could not change the folder menu: ' + e);
             }
         }
+    }
+
+    /** Keeps what was typed for the CLI on screen, then shows another one's path, model and note. */
+    private showCli(cli: AgentCli, keep = true) {
+        if (keep) this.keepShownCli();
+        this.shownCli = cli;
+        this.agentPathLabel.textContent = `${CLI_LABELS[cli]} path:`;
+        this.claudePathInput.value = this.agentPaths[cli];
+        this.agentModelRow.classList.toggle('hidden', cli === 'claude');
+        this.agentModelInput.value = this.agentModels[cli];
+        this.agentModelInput.placeholder = cli === 'opencode' ? "OpenCode's default (provider/model)" : "Antigravity's default (see `agy models`)";
+        this.agentCliNote.textContent = CLI_NOTES[cli];
+        this.agentCliNote.classList.toggle('hidden', !CLI_NOTES[cli]);
+    }
+
+    private keepShownCli() {
+        this.agentPaths[this.shownCli] = this.claudePathInput.value.trim();
+        if (this.shownCli !== 'claude') this.agentModels[this.shownCli] = this.agentModelInput.value.trim();
+    }
+
+    private agentSettings() {
+        this.keepShownCli();
+        return {
+            agentCli: this.agentCliSelect.value,
+            claudePath: this.agentPaths.claude,
+            opencodePath: this.agentPaths.opencode,
+            agyPath: this.agentPaths.agy,
+            opencodeModel: this.agentModels.opencode,
+            agyModel: this.agentModels.agy
+        };
     }
 
     private getKeyForService(service: string) {

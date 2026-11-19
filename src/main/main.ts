@@ -13,9 +13,10 @@ import { SystemStyles } from './prompts';
 import { AgentTask, AgentTaskManager } from './services/agents/AgentTaskManager';
 import { AgentWindow } from './services/window/AgentWindow';
 import { AgentNotifications } from './services/agents/AgentNotifications';
-import { ClaudeRunner, resolveClaudePath } from './services/agents/ClaudeRunner';
-import { isFolder, registerAgentIpc, requireFolder } from './services/agents/agentIpc';
-import { parseAgentCommand } from './services/agents/claudeCli';
+import { agentRunners, currentAgentCli, isFolder, registerAgentIpc, requireFolder } from './services/agents/agentIpc';
+import { LocalTools } from './services/agents/agentRunners';
+import { AgentSchedules } from './services/agents/AgentSchedules';
+import { AGENT_CLIS, CLI_NAMES, parseAgentCommand } from './services/agents/claudeCli';
 
 
 // Debug: Force log on startup
@@ -29,6 +30,9 @@ let automationManager: AutomationManager;
 let fileManager: FileManager;
 let agentTasks: AgentTaskManager;
 let agentWindow: AgentWindow;
+let agentSchedules: AgentSchedules;
+
+const SCHEDULE_TICK_MS = 15 * 60_000;
 let catalogWindow: BrowserWindow | null = null;
 
 // Register Custom Protocol
@@ -106,9 +110,17 @@ if (!gotTheLock) {
                 updateTrayTasks();
             }
         );
-        agentTasks = new AgentTaskManager(store, new ClaudeRunner(() => resolveClaudePath(store.get('claudePath'))), notifications);
-        registerAgentIpc(store, agentWindow, agentTasks);
+        agentTasks = new AgentTaskManager(store, agentRunners(store), notifications, () => currentAgentCli(store), new LocalTools());
+        agentSchedules = new AgentSchedules(store, (dir, intent) => {
+            if (isFolder(dir)) agentTasks.start(dir, intent);
+        });
+        registerAgentIpc(store, agentWindow, agentTasks, agentSchedules, updateTraySchedules);
         updateTrayTasks();
+        updateTrayClis();
+        updateTraySchedules();
+        // Repeating requests that came due while Tactio was closed start a minute after launch.
+        setTimeout(() => agentSchedules.tick(), 60_000);
+        setInterval(() => agentSchedules.tick(), SCHEDULE_TICK_MS);
         handleAgentCommand(process.argv);
 
         app.on('activate', () => {
@@ -135,6 +147,7 @@ const TASK_LABELS: Record<AgentTask['state'], string> = {
     proposing: 'planning…',
     awaiting_input: 'has a question',
     proposed: 'plan ready',
+    answered: 'answered',
     applying: 'running…',
     applied: 'done',
     undoing: 'undoing…',
@@ -146,6 +159,26 @@ const TASK_LABELS: Record<AgentTask['state'], string> = {
 function updateTrayTasks() {
     const tasks = agentTasks.list().map(t => ({ id: t.id, label: `${path.basename(t.dir) || t.dir} · ${TASK_LABELS[t.state]}` }));
     trayManager.setAgentTasks(tasks, taskId => agentWindow.show({ taskId }));
+}
+
+/** The tray's list of repeating requests; picking one stops it. */
+function updateTraySchedules() {
+    const items = agentSchedules.list().map(s => ({ id: s.id, label: `${path.basename(s.dir) || s.dir} · ${s.intent.slice(0, 40)}` }));
+    trayManager.setSchedules(items, id => {
+        agentSchedules.remove(id);
+        updateTraySchedules();
+    });
+}
+
+/** The tray's agent picker; picking one saves it like Settings does, so new tasks run on it. */
+function updateTrayClis() {
+    const current = currentAgentCli(store);
+    const clis = AGENT_CLIS.map(id => ({ id, label: CLI_NAMES[id], checked: id === current }));
+    trayManager.setAgentClis(clis, id => {
+        store.set('agentCli', id);
+        windowManager.sendConfig(store.getAll());
+        updateTrayClis();
+    });
 }
 
 function handleAgentCommand(argv: string[]) {
@@ -249,7 +282,12 @@ ipcMain.handle('get-settings', () => {
         promptVariables: s.get('promptVariables') || [],
 
         generateMetadata: s.get('generateMetadata') !== false,
+        agentCli: s.get('agentCli') || 'claude',
         claudePath: s.get('claudePath') || '',
+        opencodePath: s.get('opencodePath') || '',
+        agyPath: s.get('agyPath') || '',
+        opencodeModel: s.get('opencodeModel') || '',
+        agyModel: s.get('agyModel') || '',
         actions: s.get('actions') || []
     };
 });
@@ -280,10 +318,13 @@ ipcMain.handle('save-settings', (event, newSettings) => {
     if (newSettings.actions !== undefined) store.set('actions', newSettings.actions);
     if (newSettings.promptVariables !== undefined) store.set('promptVariables', newSettings.promptVariables);
     if (newSettings.generateMetadata !== undefined) store.set('generateMetadata', newSettings.generateMetadata);
-    if (newSettings.claudePath !== undefined) store.set('claudePath', newSettings.claudePath);
+    for (const key of ['agentCli', 'claudePath', 'opencodePath', 'agyPath', 'opencodeModel', 'agyModel']) {
+        if (newSettings[key] !== undefined) store.set(key, newSettings[key]);
+    }
 
     // Notify renderers
     windowManager.sendConfig(store.getAll());
+    updateTrayClis();
 
     return true;
 });
