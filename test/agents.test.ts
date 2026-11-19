@@ -45,7 +45,7 @@ test('unexpectedChanges flags work that was not approved', () => {
 });
 
 test('parseAgentCommand reads start and answer commands', () => {
-    assert.deepEqual(parseAgentCommand(['Tactio.exe', '--agent', 'C:\\fotos', '--intent', 'rename']), { kind: 'start', dir: 'C:\\fotos', intent: 'rename' });
+    assert.deepEqual(parseAgentCommand(['Tactio.exe', '--agent', 'C:\\fotos', '--request', 'rename']), { kind: 'start', dir: 'C:\\fotos', request: 'rename' });
     assert.deepEqual(parseAgentCommand(['Tactio.exe', '--agent-answer', 'ab12', 'by date']), { kind: 'answer', id: 'ab12', text: 'by date' });
     assert.deepEqual(parseAgentCommand(['Tactio.exe', '--agent', 'C:\\fotos']), { kind: 'open', dir: 'C:\\fotos' });
     assert.deepEqual(parseAgentCommand(['Tactio.exe', '--allow-file-access-from-files', '--agent=C:\\my files']), { kind: 'open', dir: 'C:\\my files' });
@@ -152,7 +152,7 @@ test('an expired login becomes an actionable message, and the task can be retrie
     assert.match(task.error!, /run `claude` and use \/login/);
     const again = manager.retry(task.id);
     await tick();
-    assert.equal(again.intent, 'tidy');
+    assert.equal(again.request, 'tidy');
     assert.equal(again.state, 'proposed');
 });
 
@@ -168,7 +168,7 @@ test('a task keeps the CLI it started on, and its refine carries the request and
     manager.refine(task.id, 'by date');
     await tick();
     assert.deepEqual(used, ['opencode', 'opencode']);
-    assert.deepEqual(steps[1], { kind: 'refine', intent: 'sort', feedback: 'by date', previous: proposal, sessionId: 'ses_1', tools: [] });
+    assert.deepEqual(steps[1], { kind: 'refine', request: 'sort', feedback: 'by date', previous: proposal, sessionId: 'ses_1', tools: [] });
     const prompt = standalonePrompt(steps[1]);
     assert.match(prompt, /sort/);
     assert.match(prompt, /Group by\?/);
@@ -176,7 +176,7 @@ test('a task keeps the CLI it started on, and its refine carries the request and
 });
 
 test('a Claude step without a session fails the task instead of throwing', async () => {
-    const data: Record<string, any> = { agentTasks: [{ id: 'old', dir: '/tmp/f', intent: 'x', state: 'proposed', proposal: { summary: '', plan: [], changes: [{ op: 'mkdir', path: 'x' }] } }] };
+    const data: Record<string, any> = { agentTasks: [{ id: 'old', dir: '/tmp/f', request: 'x', state: 'proposed', proposal: { summary: '', plan: [], changes: [{ op: 'mkdir', path: 'x' }] } }] };
     const runner = { run: async (_cwd: string, step: AgentStep): Promise<ClaudeResult> => { claudeArgs(step); return { isError: true, text: '' }; } };
     const manager = new AgentTaskManager({ get: k => data[k], set: (k, v) => (data[k] = v) }, () => runner, { changed: () => {} });
     manager.approve('old');
@@ -193,7 +193,7 @@ test('an expired OpenCode key points to its own login', async () => {
 });
 
 const applyStep: AgentStep = { kind: 'apply', taskId: 't1', changes: [{ op: 'rename', path: 'a', to: 'b' }] };
-const proposeStep: AgentStep = { kind: 'propose', intent: 'rename the photos' };
+const proposeStep: AgentStep = { kind: 'propose', request: 'rename the photos' };
 
 test('OpenCode reads only while proposing, and writes with mv, mkdir and cp only', () => {
     const read = JSON.parse(opencodeEnv(proposeStep, 'C:\\f', {}).OPENCODE_CONFIG_CONTENT!).agent.tactio.permission;

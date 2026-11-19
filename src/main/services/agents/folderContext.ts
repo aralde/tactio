@@ -194,16 +194,16 @@ export function withFolderContext(runner: Runner): Runner {
 }
 
 /** A file name for a saved answer, from the request: `tactio-what-are-these-images.md`. */
-export function answerFileName(intent: string): string {
-    const slug = intent.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48);
+export function answerFileName(request: string): string {
+    const slug = request.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48);
     return `tactio-${slug || 'answer'}.md`;
 }
 
 /** Writes the task's answer into its folder, next to any earlier one rather than over it. */
-export function saveAnswer(dir: string, intent: string, answer: string): string {
-    const base = answerFileName(intent).replace(/\.md$/, '');
+export function saveAnswer(dir: string, request: string, answer: string): string {
+    const base = answerFileName(request).replace(/\.md$/, '');
     let file = path.join(dir, `${base}.md`);
     for (let i = 2; fs.existsSync(file); i++) file = path.join(dir, `${base}-${i}.md`);
-    fs.writeFileSync(file, `# ${intent}\n\n${answer.trim()}\n`);
+    fs.writeFileSync(file, `# ${request}\n\n${answer.trim()}\n`);
     return file;
 }

@@ -19,7 +19,7 @@ export interface WindowAPI {
     log: (message: string, data?: any) => void;
 
     agentGet: (id: string) => Promise<AgentTask | undefined>;
-    agentStart: (dir: string, intent: string) => Promise<string>;
+    agentStart: (dir: string, request: string) => Promise<string>;
     agentRetry: (id: string) => Promise<string>;
     agentRefine: (id: string, text: string) => Promise<void>;
     agentApprove: (id: string) => Promise<void>;
@@ -53,7 +53,7 @@ export type AgentCli = 'claude' | 'opencode' | 'agy';
 export interface AgentTask {
     id: string;
     dir: string;
-    intent: string;
+    request: string;
     state: 'proposing' | 'awaiting_input' | 'proposed' | 'answered' | 'applying' | 'applied' | 'undoing' | 'undone' | 'cancelled' | 'failed';
     proposal?: {
         summary: string;
