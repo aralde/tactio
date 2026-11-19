@@ -9,3 +9,4 @@ actions
 *.log
 .vscode/
 .claude/
+dist-test
