@@ -1,6 +1,7 @@
-import { Tray, Menu, nativeImage, app } from 'electron';
+import { Tray, Menu, nativeImage, app, shell } from 'electron';
 import * as path from 'path';
 import { WindowManager } from '../window/WindowManager';
+import { Logger } from '../../logger';
 
 export interface TrayTask {
     id: string;
@@ -67,6 +68,10 @@ export class TrayManager {
                 submenu: tasks
             },
             { type: 'separator' },
+            {
+                label: 'Open logs folder',
+                click: () => shell.showItemInFolder(Logger.logPath)
+            },
             {
                 label: 'Quit',
                 click: () => {
