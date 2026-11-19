@@ -10,6 +10,10 @@ import { LLMFactory } from './services/llm/LLMFactory';
 import { LLMConfig } from './services/llm/LLMParameters';
 import { simulatePaste } from './automation';
 import { SystemStyles } from './prompts';
+import { AgentTaskManager } from './services/agents/AgentTaskManager';
+import { AgentNotifications } from './services/agents/AgentNotifications';
+import { ClaudeRunner, resolveClaudePath } from './services/agents/ClaudeRunner';
+import { parseAgentCommand } from './services/agents/claudeCli';
 
 
 // Debug: Force log on startup
@@ -21,6 +25,7 @@ let windowManager: WindowManager;
 let trayManager: TrayManager;
 let automationManager: AutomationManager;
 let fileManager: FileManager;
+let agentTasks: AgentTaskManager;
 let catalogWindow: BrowserWindow | null = null;
 
 // Register Custom Protocol
@@ -39,7 +44,8 @@ if (!gotTheLock) {
 } else {
     app.on('second-instance', (event, commandLine, workingDirectory) => {
         // Someone tried to run a second instance, we should focus our window.
-        if (windowManager) {
+        // Agent commands run in the background, so they leave the window alone.
+        if (windowManager && !parseAgentCommand(commandLine)) {
             const win = windowManager.getWindow();
             if (win) {
                 if (win.isMinimized()) win.restore();
@@ -52,6 +58,8 @@ if (!gotTheLock) {
         if (url) {
             handleDeepLink(url);
         }
+
+        handleAgentCommand(commandLine);
     });
 
     app.on('open-url', (event, url) => {
@@ -84,6 +92,12 @@ if (!gotTheLock) {
 
         fileManager = new FileManager(store);
 
+        app.setAppUserModelId('com.aralde.tactio');
+        const notifications = new AgentNotifications();
+        agentTasks = new AgentTaskManager(store, new ClaudeRunner(() => resolveClaudePath(store.get('claudePath'))), notifications);
+        notifications.attach(agentTasks);
+        handleAgentCommand(process.argv);
+
         app.on('activate', () => {
             if (!windowManager.getWindow()) {
                 windowManager.create();
@@ -103,6 +117,17 @@ app.on('window-all-closed', () => {
         app.quit();
     }
 });
+
+function handleAgentCommand(argv: string[]) {
+    const command = parseAgentCommand(argv);
+    if (!command || !agentTasks) return;
+    try {
+        if (command.kind === 'start') agentTasks.start(command.dir, command.intent);
+        else agentTasks.refine(command.id, command.text);
+    } catch (e) {
+        console.error('[Agent] Command failed:', e);
+    }
+}
 
 function handleDeepLink(url: string) {
     console.log('[DeepLink] Received URL:', url);

@@ -10,7 +10,8 @@
     "build:portable": "npm run build:renderer && tsc && electron-builder --win portable",
     "build:installer": "npm run build:renderer && tsc && electron-builder --win nsis",
     "rebuild": "electron-rebuild -f -w robotjs",
-    "postinstall": "electron-builder install-app-deps"
+    "postinstall": "electron-builder install-app-deps",
+    "test": "tsc -p tsconfig.test.json && node --test dist-test/test/*.test.js"
   },
   "keywords": [],
   "author": "aralde",
