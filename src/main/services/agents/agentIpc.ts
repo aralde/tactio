@@ -71,7 +71,7 @@ export function agentRunners(store: any): (cli: AgentCli) => Runner {
 
 export function registerAgentIpc(store: any, agentWindow: AgentWindow, tasks: AgentTaskManager, schedules: AgentSchedules, onSchedulesChanged: () => void) {
     ipcMain.handle('agent-get', (event, id: string) => tasks.get(id));
-    ipcMain.handle('agent-start', (event, dir: string, intent: string) => tasks.start(requireFolder(dir), intent).id);
+    ipcMain.handle('agent-start', (event, dir: string, request: string) => tasks.start(requireFolder(dir), request).id);
     ipcMain.handle('agent-retry', (event, id: string) => {
         const task = tasks.get(id);
         if (task) requireFolder(task.dir);
@@ -114,20 +114,20 @@ export function registerAgentIpc(store: any, agentWindow: AgentWindow, tasks: Ag
     ipcMain.handle('agent-save-answer', (event, id: string) => {
         const task = tasks.get(id);
         if (!task?.proposal?.answer) throw new Error('This task has no answer to save.');
-        return saveAnswer(requireFolder(task.dir), task.intent, task.proposal.answer);
+        return saveAnswer(requireFolder(task.dir), task.request, task.proposal.answer);
     });
 
     ipcMain.handle('agent-repeat-get', (event, id: string) => {
         const task = tasks.get(id);
-        return Boolean(task && schedules.find(task.dir, task.intent));
+        return Boolean(task && schedules.find(task.dir, task.request));
     });
 
     // Turns weekly repetition of the task's request on or off, and returns whether it is on.
     ipcMain.handle('agent-repeat-set', (event, id: string, on: boolean) => {
         const task = tasks.get(id);
         if (!task) throw new Error(`No task ${id}`);
-        const existing = schedules.find(task.dir, task.intent);
-        if (on && !existing) schedules.add(task.dir, task.intent);
+        const existing = schedules.find(task.dir, task.request);
+        if (on && !existing) schedules.add(task.dir, task.request);
         if (!on && existing) schedules.remove(existing.id);
         onSchedulesChanged();
         return on;

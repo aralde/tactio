@@ -24,7 +24,7 @@ contextBridge.exposeInMainWorld('api', {
     log: (message: string, data?: any) => ipcRenderer.send('log', message, data),
 
     agentGet: (id: string) => ipcRenderer.invoke('agent-get', id),
-    agentStart: (dir: string, intent: string) => ipcRenderer.invoke('agent-start', dir, intent),
+    agentStart: (dir: string, request: string) => ipcRenderer.invoke('agent-start', dir, request),
     agentRetry: (id: string) => ipcRenderer.invoke('agent-retry', id),
     agentRefine: (id: string, text: string) => ipcRenderer.invoke('agent-refine', id, text),
     agentApprove: (id: string) => ipcRenderer.invoke('agent-approve', id),

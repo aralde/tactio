@@ -4,7 +4,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import AdmZip from 'adm-zip';
-import { AgentCli, AgentStep, Change, ClaudeResult, proposePrompt } from '../src/main/services/agents/claudeCli';
+import { AgentCli, AgentStep, Change, ClaudeResult, parseAgentCommand, proposePrompt } from '../src/main/services/agents/claudeCli';
 import { AgentTask, AgentTaskManager } from '../src/main/services/agents/AgentTaskManager';
 import { ToolRunner } from '../src/main/services/agents/agentRunners';
 import { runArgs, runProblem } from '../src/main/services/agents/toolRuns';
@@ -209,7 +209,7 @@ test('a weekly request starts once when due, even after days closed', () => {
     const data: Record<string, any> = {};
     const started: string[] = [];
     let now = new Date('2026-11-01T10:00:00Z');
-    const schedules = new AgentSchedules({ get: k => data[k], set: (k, v) => (data[k] = v) }, (dir, intent) => started.push(`${dir}:${intent}`), () => now);
+    const schedules = new AgentSchedules({ get: k => data[k], set: (k, v) => (data[k] = v) }, (dir, request) => started.push(`${dir}:${request}`), () => now);
     const s = schedules.add('C:\\Descargas', 'ordenar');
     assert.equal(schedules.add('C:\\Descargas', 'ordenar').id, s.id);
     assert.equal(s.nextAt, '2026-11-08T10:00:00.000Z');
@@ -223,4 +223,17 @@ test('a weekly request starts once when due, even after days closed', () => {
     assert.equal(started.length, 1);
     schedules.remove(s.id);
     assert.deepEqual(data.agentSchedules, []);
+});
+
+test('tasks, schedules and launchers saved with the old "intent" name still work', () => {
+    const data: Record<string, any> = {
+        agentTasks: [{ id: 'old', dir: '/tmp/f', intent: 'tidy', state: 'applied' }],
+        agentSchedules: [{ id: 's', dir: '/tmp/f', intent: 'tidy', everyDays: 7, nextAt: '2030-01-01T00:00:00.000Z' }]
+    };
+    const store = { get: (k: string) => data[k], set: (k: string, v: any) => (data[k] = v) };
+    const manager = new AgentTaskManager(store, () => ({ run: async () => ({ isError: true, text: '' }) }), { changed: () => {} });
+    assert.equal(manager.get('old')!.request, 'tidy');
+    assert.equal((manager.get('old') as { intent?: string }).intent, undefined);
+    assert.equal(new AgentSchedules(store, () => {}).find('/tmp/f', 'tidy')?.id, 's');
+    assert.deepEqual(parseAgentCommand(['Tactio.exe', '--agent', 'C:\\f', '--intent', 'tidy']), { kind: 'start', dir: 'C:\\f', request: 'tidy' });
 });

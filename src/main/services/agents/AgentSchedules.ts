@@ -1,9 +1,10 @@
 import { randomUUID } from 'crypto';
+import { withRequest } from './claudeCli';
 
 export interface Schedule {
     id: string;
     dir: string;
-    intent: string;
+    request: string;
     everyDays: number;
     /** when it next starts a task, as an ISO date */
     nextAt: string;
@@ -24,23 +25,23 @@ const DAY_MS = 24 * 60 * 60_000;
 export class AgentSchedules {
     private schedules: Schedule[];
 
-    constructor(private store: ScheduleStore, private start: (dir: string, intent: string) => void, private now: () => Date = () => new Date()) {
-        this.schedules = store.get(STORE_KEY) || [];
+    constructor(private store: ScheduleStore, private start: (dir: string, request: string) => void, private now: () => Date = () => new Date()) {
+        this.schedules = (store.get(STORE_KEY) || []).map(withRequest);
     }
 
     list(): Schedule[] {
         return [...this.schedules];
     }
 
-    find(dir: string, intent: string): Schedule | undefined {
-        return this.schedules.find(s => s.dir === dir && s.intent === intent);
+    find(dir: string, request: string): Schedule | undefined {
+        return this.schedules.find(s => s.dir === dir && s.request === request);
     }
 
     /** Repeats a request every `everyDays` days, counting from now; the same request is kept once. */
-    add(dir: string, intent: string, everyDays = 7): Schedule {
-        const existing = this.find(dir, intent);
+    add(dir: string, request: string, everyDays = 7): Schedule {
+        const existing = this.find(dir, request);
         if (existing) return existing;
-        const schedule = { id: randomUUID().slice(0, 8), dir, intent, everyDays, nextAt: new Date(this.now().getTime() + everyDays * DAY_MS).toISOString() };
+        const schedule = { id: randomUUID().slice(0, 8), dir, request, everyDays, nextAt: new Date(this.now().getTime() + everyDays * DAY_MS).toISOString() };
         this.schedules.push(schedule);
         this.save();
         return schedule;
@@ -66,7 +67,7 @@ export class AgentSchedules {
             s.nextAt = new Date(next).toISOString();
             changed = true;
             try {
-                this.start(s.dir, s.intent);
+                this.start(s.dir, s.request);
             } catch (e) {
                 console.error('[Agent] A repeating task could not start:', e);
             }

@@ -111,8 +111,8 @@ if (!gotTheLock) {
             }
         );
         agentTasks = new AgentTaskManager(store, agentRunners(store), notifications, () => currentAgentCli(store), new LocalTools());
-        agentSchedules = new AgentSchedules(store, (dir, intent) => {
-            if (isFolder(dir)) agentTasks.start(dir, intent);
+        agentSchedules = new AgentSchedules(store, (dir, request) => {
+            if (isFolder(dir)) agentTasks.start(dir, request);
         });
         registerAgentIpc(store, agentWindow, agentTasks, agentSchedules, updateTraySchedules);
         updateTrayTasks();
@@ -163,7 +163,7 @@ function updateTrayTasks() {
 
 /** The tray's list of repeating requests; picking one stops it. */
 function updateTraySchedules() {
-    const items = agentSchedules.list().map(s => ({ id: s.id, label: `${path.basename(s.dir) || s.dir} · ${s.intent.slice(0, 40)}` }));
+    const items = agentSchedules.list().map(s => ({ id: s.id, label: `${path.basename(s.dir) || s.dir} · ${s.request.slice(0, 40)}` }));
     trayManager.setSchedules(items, id => {
         agentSchedules.remove(id);
         updateTraySchedules();
@@ -186,7 +186,7 @@ function handleAgentCommand(argv: string[]) {
     if (!command || !agentTasks) return;
     try {
         if (command.kind === 'open') agentWindow.show(isFolder(command.dir) ? { dir: command.dir } : {});
-        else if (command.kind === 'start') agentTasks.start(requireFolder(command.dir), command.intent);
+        else if (command.kind === 'start') agentTasks.start(requireFolder(command.dir), command.request);
         else agentTasks.refine(command.id, command.text);
     } catch (e) {
         console.error('[Agent] Command failed:', e);

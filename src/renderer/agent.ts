@@ -179,9 +179,9 @@ async function compose() {
     input.placeholder = 'Ask about this folder or say what to do, e.g. "Which files are duplicates?" or "Turn the invoices into a CSV"';
 
     const plan = button('Ask', 'primary', async () => {
-        const intent = input.value.trim();
-        if (!dir || !intent) return;
-        taskId = await window.api.agentStart(dir, intent);
+        const request = input.value.trim();
+        if (!dir || !request) return;
+        taskId = await window.api.agentStart(dir, request);
         const task = await window.api.agentGet(taskId);
         if (task) render(task);
     });
@@ -209,7 +209,7 @@ function working(task: AgentTask) {
         bar.style.width = `${w}%`;
         return bar;
     });
-    view(task.intent, folderName(task.dir), [...bars, el('p', 'note', `${what} You can close this; a notification will tell you when it's done.`)],
+    view(task.request, folderName(task.dir), [...bars, el('p', 'note', `${what} You can close this; a notification will tell you when it's done.`)],
         [footRow(spacer(), button('Close', 'ghost', hide))]);
 }
 
@@ -296,7 +296,7 @@ function questions(task: AgentTask) {
     const skipRow = el('div', 'foot-center');
     skipRow.append(skip);
 
-    view(task.intent, folderName(task.dir), content, [footRow(back, next), skipRow]);
+    view(task.request, folderName(task.dir), content, [footRow(back, next), skipRow]);
 }
 
 function plan(task: AgentTask) {
@@ -380,7 +380,7 @@ async function answered(task: AgentTask) {
         await window.api.copyToClipboard(proposal.answer!);
         copy.textContent = 'Copied';
     });
-    view(proposal.summary || task.intent, `In ${folderName(task.dir)}`, content,
+    view(proposal.summary || task.request, `In ${folderName(task.dir)}`, content,
         [footRow(copy, save, spacer(), button('Close', 'primary', hide)), footCenter(await repeatButton(task))]);
 }
 
@@ -405,17 +405,17 @@ async function result(task: AgentTask) {
         if (task.unexpected!.length) content.push(el('p', 'warn', `Also did, without it being in the plan: ${task.unexpected!.map(describe).join(', ')}`));
         const n = task.applied!.done.length;
         const undo = n ? [button('Undo', 'ghost', () => window.api.agentUndo(task.id))] : [];
-        return view(n ? 'Done' : 'Nothing changed', `${n} change${n === 1 ? '' : 's'} in ${folder} · ${task.intent}`, content,
+        return view(n ? 'Done' : 'Nothing changed', `${n} change${n === 1 ? '' : 's'} in ${folder} · ${task.request}`, content,
             [footRow(...undo, spacer(), close), footCenter(await repeatButton(task))]);
     }
     if (task.state === 'undone') {
         const content = task.undone!.failed.map(f => el('p', 'warn', `Couldn't revert ${describe(f.change)}: ${f.reason}`));
-        return view('Undone', `${folder} is back to how it was · ${task.intent}`, content, [footRow(spacer(), close)]);
+        return view('Undone', `${folder} is back to how it was · ${task.request}`, content, [footRow(spacer(), close)]);
     }
     if (task.state === 'cancelled') {
-        return view('Cancelled', `${folder} · ${task.intent}`, [], [footRow(retry, spacer(), close)]);
+        return view('Cancelled', `${folder} · ${task.request}`, [], [footRow(retry, spacer(), close)]);
     }
-    view("It didn't work", `${folder} · ${task.intent}`, [el('p', 'error', task.error || 'Unknown error')], [footRow(retry, spacer(), close)]);
+    view("It didn't work", `${folder} · ${task.request}`, [el('p', 'error', task.error || 'Unknown error')], [footRow(retry, spacer(), close)]);
 }
 
 function render(task: AgentTask) {

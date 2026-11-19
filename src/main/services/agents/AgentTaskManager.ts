@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto';
 import { Runner, ToolRunner } from './agentRunners';
 import {
     AgentCli, AgentStep, Applied, CLI_NAMES, Change, Proposal,
-    friendlyError, outsideChange, unexpectedChanges
+    friendlyError, outsideChange, unexpectedChanges, withRequest
 } from './claudeCli';
 import { isRun, refusedRun } from './toolRuns';
 
@@ -14,7 +14,7 @@ export type TaskState =
 export interface AgentTask {
     id: string;
     dir: string;
-    intent: string;
+    request: string;
     /** the CLI that runs every step of this task; tasks saved before there was a choice ran on Claude */
     cli?: AgentCli;
     state: TaskState;
@@ -62,7 +62,7 @@ export class AgentTaskManager {
         private currentCli: () => AgentCli = () => 'claude',
         private tools: ToolRunner = NO_TOOLS
     ) {
-        this.tasks = store.get(STORE_KEY) || [];
+        this.tasks = (store.get(STORE_KEY) || []).map(withRequest);
         // A run can't survive a restart: its process died with the app.
         for (const t of this.tasks) {
             if (RUNNING.includes(t.state)) Object.assign(t, { state: 'failed', error: 'Tactio closed while the task was running.' });
@@ -78,13 +78,13 @@ export class AgentTaskManager {
         return this.tasks.find(t => t.id === id);
     }
 
-    start(dir: string, intent: string): AgentTask {
+    start(dir: string, request: string): AgentTask {
         const now = new Date().toISOString();
-        const task: AgentTask = { id: randomUUID().slice(0, 8), dir, intent, cli: this.currentCli(), state: 'proposing', createdAt: now, updatedAt: now };
+        const task: AgentTask = { id: randomUUID().slice(0, 8), dir, request, cli: this.currentCli(), state: 'proposing', createdAt: now, updatedAt: now };
         this.tasks.unshift(task);
         this.tasks = this.tasks.slice(0, KEEP);
         this.update(task, {});
-        this.propose(task, { kind: 'propose', intent, tools: this.tools.installed() });
+        this.propose(task, { kind: 'propose', request, tools: this.tools.installed() });
         return task;
     }
 
@@ -93,7 +93,7 @@ export class AgentTaskManager {
         const task = this.require(id, ['awaiting_input', 'proposed', 'answered']);
         const previous = task.proposal;
         this.update(task, { state: 'proposing', proposal: undefined });
-        this.propose(task, { kind: 'refine', intent: task.intent, feedback, previous, sessionId: task.sessionId, tools: this.tools.installed() });
+        this.propose(task, { kind: 'refine', request: task.request, feedback, previous, sessionId: task.sessionId, tools: this.tools.installed() });
     }
 
     /**
@@ -127,7 +127,7 @@ export class AgentTaskManager {
     /** Starts the same request again as a new task. */
     retry(id: string): AgentTask {
         const task = this.require(id, ['failed', 'cancelled', 'undone', 'answered', 'applied']);
-        return this.start(task.dir, task.intent);
+        return this.start(task.dir, task.request);
     }
 
     cancel(id: string) {

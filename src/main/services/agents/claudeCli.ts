@@ -54,11 +54,11 @@ export function isAgentCli(value: unknown): value is AgentCli {
 
 /**
  * One run of the agent. `sessionId` lets Claude resume its own conversation; the other CLIs get
- * everything the run needs in its prompt, so `intent` and `previous` travel with a refine.
+ * everything the run needs in its prompt, so `request` and `previous` travel with a refine.
  */
 export type AgentStep =
-    | { kind: 'propose'; intent: string; tools?: string[] }
-    | { kind: 'refine'; intent: string; feedback: string; previous?: Proposal; sessionId?: string; tools?: string[] }
+    | { kind: 'propose'; request: string; tools?: string[] }
+    | { kind: 'refine'; request: string; feedback: string; previous?: Proposal; sessionId?: string; tools?: string[] }
     | { kind: 'apply'; taskId: string; changes: Change[]; sessionId?: string }
     | { kind: 'undo'; taskId: string; done: Change[]; sessionId?: string };
 
@@ -147,11 +147,11 @@ function toolRules(tools: string[]): string[] {
     ];
 }
 
-export function proposePrompt(intent: string, tools: string[] = []): string {
+export function proposePrompt(request: string, tools: string[] = []): string {
     return [
         'You work inside the current folder for a desktop app. The user asked:',
         '',
-        intent,
+        request,
         '',
         'Inspect the folder with your read-only tools and work out how to do this. Change nothing yet.',
         `Tactio left ${CONTEXT_DIR}/inventory.tsv: every file with its size in bytes, when it was modified and, for files that share a size, a sha256 hash (equal hashes are exact duplicates). The text of Word, Excel and PowerPoint files is under ${CONTEXT_DIR}/text/. Use them, and never list anything under ${TRASH_DIR} as a change.`,
@@ -197,8 +197,8 @@ export function undoPrompt(taskId: string, done: Change[]): string {
     ].join('\n');
 }
 
-export function proposeArgs(intent: string, tools: string[] = []): string[] {
-    return [...baseArgs(proposePrompt(intent, tools), proposalSchema), '--tools', READ_TOOLS.join(',')];
+export function proposeArgs(request: string, tools: string[] = []): string[] {
+    return [...baseArgs(proposePrompt(request, tools), proposalSchema), '--tools', READ_TOOLS.join(',')];
 }
 
 export function refineArgs(sessionId: string, feedback: string): string[] {
@@ -233,7 +233,7 @@ export function claudeArgs(step: AgentStep): string[] {
         return id;
     };
     switch (step.kind) {
-        case 'propose': return proposeArgs(step.intent, step.tools);
+        case 'propose': return proposeArgs(step.request, step.tools);
         case 'refine': return refineArgs(session(step.sessionId), step.feedback);
         case 'apply': return applyArgs(step.taskId, session(step.sessionId), step.changes);
         case 'undo': return undoArgs(step.taskId, session(step.sessionId), step.done);
@@ -241,8 +241,8 @@ export function claudeArgs(step: AgentStep): string[] {
 }
 
 /** A refine for a CLI that starts fresh each run: the request and the last proposal come along. */
-export function standaloneRefinePrompt(intent: string, feedback: string, previous?: Proposal, tools: string[] = []): string {
-    const lines = [proposePrompt(intent, tools), ''];
+export function standaloneRefinePrompt(request: string, feedback: string, previous?: Proposal, tools: string[] = []): string {
+    const lines = [proposePrompt(request, tools), ''];
     if (previous) lines.push('Your previous proposal was:', '', JSON.stringify(previous, null, 2), '');
     lines.push('The user answered your questions or asked for changes to it:', '', feedback, '', 'Propose again with the same rules. Change nothing yet.');
     return lines.join('\n');
@@ -251,8 +251,8 @@ export function standaloneRefinePrompt(intent: string, feedback: string, previou
 /** The whole prompt for a step, for CLIs that don't resume Claude's session. */
 export function standalonePrompt(step: AgentStep): string {
     switch (step.kind) {
-        case 'propose': return proposePrompt(step.intent, step.tools);
-        case 'refine': return standaloneRefinePrompt(step.intent, step.feedback, step.previous, step.tools);
+        case 'propose': return proposePrompt(step.request, step.tools);
+        case 'refine': return standaloneRefinePrompt(step.request, step.feedback, step.previous, step.tools);
         case 'apply': return `${applyPrompt(step.taskId, step.changes)}\n${SHELL_RULES}`;
         case 'undo': return `${undoPrompt(step.taskId, step.done)}\n${SHELL_RULES}`;
     }
@@ -312,11 +312,11 @@ export function unexpectedChanges(approved: Change[], done: Change[]): Change[] 
 
 export type AgentCommand =
     | { kind: 'open'; dir: string }
-    | { kind: 'start'; dir: string; intent: string }
+    | { kind: 'start'; dir: string; request: string }
     | { kind: 'answer'; id: string; text: string };
 
 /**
- * Reads `--agent <dir>` (the folder menu: open the agent panel there), `--agent <dir> --intent <text>`
+ * Reads `--agent <dir>` (the folder menu: open the agent panel there), `--agent <dir> --request <text>`
  * or `--agent-answer <id> <text>` from a command line.
  */
 export function parseAgentCommand(argv: string[]): AgentCommand | undefined {
@@ -332,8 +332,9 @@ export function parseAgentCommand(argv: string[]): AgentCommand | undefined {
     const answer = values('--agent-answer', 2);
     if (answer) return { kind: 'answer', id: answer[0], text: answer[1] };
     const dir = values('--agent', 1)?.[0];
-    const intent = values('--intent', 1)?.[0];
-    if (dir && intent) return { kind: 'start', dir, intent };
+    // `--intent` was the flag's earlier name; launchers made with it keep working.
+    const request = values('--request', 1)?.[0] ?? values('--intent', 1)?.[0];
+    if (dir && request) return { kind: 'start', dir, request };
     if (dir) return { kind: 'open', dir };
     return undefined;
 }
@@ -360,4 +361,13 @@ export function cliCandidates(cli: AgentCli, listed: string[], env: Record<strin
     });
     const home = env.USERPROFILE ? [`${env.USERPROFILE}\\.opencode\\bin\\opencode.exe`] : [];
     return [...listed, ...shims, ...home];
+}
+
+/** Tasks and schedules saved before the field was renamed call it `intent`. */
+export function withRequest<T extends { request: string }>(saved: T & { intent?: string }): T {
+    if (saved.request === undefined && saved.intent !== undefined) {
+        const { intent, ...rest } = saved;
+        return { ...rest, request: intent } as unknown as T;
+    }
+    return saved;
 }
