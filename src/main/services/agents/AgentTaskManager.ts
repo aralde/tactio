@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto';
 import { Runner } from './ClaudeRunner';
 import {
     Applied, Change, ClaudeResult, Proposal,
-    applyArgs, outsideChange, proposeArgs, refineArgs, undoArgs, unexpectedChanges
+    applyArgs, friendlyError, outsideChange, proposeArgs, refineArgs, undoArgs, unexpectedChanges
 } from './claudeCli';
 
 export type TaskState =
@@ -85,6 +85,12 @@ export class AgentTaskManager {
         });
     }
 
+    /** Starts the same request again as a new task. */
+    retry(id: string): AgentTask {
+        const task = this.require(id, ['failed', 'cancelled', 'undone']);
+        return this.start(task.dir, task.intent);
+    }
+
     cancel(id: string) {
         this.update(this.require(id, ['awaiting_input', 'proposed']), { state: 'cancelled' });
     }
@@ -100,7 +106,7 @@ export class AgentTaskManager {
     private propose(task: AgentTask, args: string[]) {
         this.run(task, args, result => {
             const proposal = result.output as Proposal;
-            if (proposal.question && !proposal.changes.length) {
+            if (proposal.questions?.length) {
                 return this.update(task, { state: 'awaiting_input', proposal });
             }
             const outside = outsideChange(proposal.changes);
@@ -116,11 +122,11 @@ export class AgentTaskManager {
             result => {
                 if (result.sessionId) task.sessionId = result.sessionId;
                 if (result.isError || !result.output) {
-                    return this.update(task, { state: 'failed', error: result.text.slice(-300) || 'Claude returned no result.' });
+                    return this.update(task, { state: 'failed', error: friendlyError(result.text.slice(-300)) || 'Claude returned no result.' });
                 }
                 done(result);
             },
-            err => this.update(task, { state: 'failed', error: err.message })
+            err => this.update(task, { state: 'failed', error: friendlyError(err.message) })
         );
     }
 

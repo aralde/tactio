@@ -7,10 +7,17 @@ export interface Change {
     detail?: string;
 }
 
+export interface Question {
+    question: string;
+    hint?: string;
+    options: string[];
+}
+
 export interface Proposal {
     summary: string;
+    plan: string[];
     changes: Change[];
-    question?: string;
+    questions?: Question[];
 }
 
 export interface Applied {
@@ -42,10 +49,22 @@ export const proposalSchema = {
     type: 'object',
     properties: {
         summary: { type: 'string' },
+        plan: { type: 'array', items: { type: 'string' } },
         changes: { type: 'array', items: changeSchema },
-        question: { type: 'string' }
+        questions: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    question: { type: 'string' },
+                    hint: { type: 'string' },
+                    options: { type: 'array', items: { type: 'string' } }
+                },
+                required: ['question', 'options']
+            }
+        }
     },
-    required: ['summary', 'changes']
+    required: ['summary', 'plan', 'changes']
 };
 
 export const appliedSchema = {
@@ -89,16 +108,18 @@ export function proposePrompt(intent: string): string {
         '',
         intent,
         '',
-        'Inspect the folder with your read-only tools and propose the exact changes that do this. Change nothing yet.',
-        'Every path is relative to the current folder and stays inside it: no absolute paths, no "..".',
+        'Inspect the folder with your read-only tools and work out how to do this. Change nothing yet.',
+        '"summary" is a title of at most 12 words saying what you will do. "plan" is 2 to 6 short, plain steps saying what you will do, not how.',
+        '"changes" lists every exact change. Paths are relative to the current folder and stay inside it: no absolute paths, no "..".',
         'Ops: rename and move need "to"; mkdir, create, edit and delete need only "path"; use "detail" to say what an edit or create writes.',
-        'If the request is ambiguous, ask one short question in "question" and leave "changes" empty.'
+        'If a choice would change the result a lot, ask about it in "questions" (at most 3), each with 2 to 4 short options, and leave "changes" empty.',
+        'Ask nothing you can decide from the files themselves.'
     ].join('\n');
 }
 
 export function refinePrompt(feedback: string): string {
     return [
-        'The user answered or asked for changes to your proposal:',
+        'The user answered your questions or asked for changes to your plan:',
         '',
         feedback,
         '',
@@ -149,6 +170,14 @@ export function applyArgs(taskId: string, sessionId: string, changes: Change[]):
 
 export function undoArgs(taskId: string, sessionId: string, done: Change[]): string[] {
     return writeArgs(undoPrompt(taskId, done), sessionId);
+}
+
+const AUTH_ERROR = /oauth|failed to authenticate|not logged in|please run \/login|invalid api key/i;
+
+/** Turns Claude's failure text into something the user can act on. */
+export function friendlyError(text: string): string {
+    if (AUTH_ERROR.test(text)) return 'Your Claude Code login expired or is missing. Open a terminal, run `claude` and use /login, then retry.';
+    return text;
 }
 
 /** Reads the single JSON object `--output-format json` prints at the end of a run. */

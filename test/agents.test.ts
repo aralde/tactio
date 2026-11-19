@@ -66,7 +66,7 @@ const tick = () => new Promise(r => setImmediate(r));
 test('a task goes from proposal to applied to undone', async () => {
     const change: Change = { op: 'rename', path: 'a.jpg', to: 'b.jpg' };
     const { manager, calls, seen } = harness([
-        { sessionId: 's1', isError: false, text: '', output: { summary: 'Rename', changes: [change] } },
+        { sessionId: 's1', isError: false, text: '', output: { summary: 'Rename', plan: ['Rename a.jpg'], changes: [change] } },
         { sessionId: 's1', isError: false, text: '', output: { done: [change, { op: 'delete', path: 'x' }], failed: [] } },
         { sessionId: 's1', isError: false, text: '', output: { done: [change], failed: [] } }
     ]);
@@ -86,8 +86,8 @@ test('a task goes from proposal to applied to undone', async () => {
 
 test('a question waits for an answer that resumes the session', async () => {
     const { manager, calls } = harness([
-        { sessionId: 's2', isError: false, text: '', output: { summary: '', changes: [], question: 'By date?' } },
-        { sessionId: 's2', isError: false, text: '', output: { summary: 'ok', changes: [{ op: 'mkdir', path: '2026' }] } }
+        { sessionId: 's2', isError: false, text: '', output: { summary: '', plan: [], changes: [], questions: [{ question: 'Group by?', options: ['Date', 'Type'] }] } },
+        { sessionId: 's2', isError: false, text: '', output: { summary: 'ok', plan: ['Make 2026'], changes: [{ op: 'mkdir', path: '2026' }] } }
     ]);
     const task = manager.start('/tmp/f', 'sort');
     await tick();
@@ -100,7 +100,7 @@ test('a question waits for an answer that resumes the session', async () => {
 
 test('a proposal that leaves the folder fails without asking', async () => {
     const { manager } = harness([
-        { sessionId: 's3', isError: false, text: '', output: { summary: 'x', changes: [{ op: 'move', path: 'a', to: '../a' }] } }
+        { sessionId: 's3', isError: false, text: '', output: { summary: 'x', plan: [], changes: [{ op: 'move', path: 'a', to: '../a' }] } }
     ]);
     const task = manager.start('/tmp/f', 'move');
     await tick();
@@ -121,4 +121,19 @@ test('the folder menu launches Tactio on the clicked folder', () => {
     assert.equal(calls.length, 6);
     assert.ok(calls.some(c => c[1].endsWith('\\Background\\shell\\Tactio\\command') && c[4].endsWith('--agent "%V"')));
     assert.deepEqual(removeMenuCalls().map(c => c[0]), ['delete', 'delete']);
+});
+
+test('an expired login becomes an actionable message, and the task can be retried', async () => {
+    const { manager } = harness([
+        { isError: true, text: 'Failed to authenticate: OAuth session expired and could not be refreshed' },
+        { sessionId: 's4', isError: false, text: '', output: { summary: 'ok', plan: ['x'], changes: [] } }
+    ]);
+    const task = manager.start('/tmp/f', 'tidy');
+    await tick();
+    assert.equal(task.state, 'failed');
+    assert.match(task.error!, /run `claude` and use \/login/);
+    const again = manager.retry(task.id);
+    await tick();
+    assert.equal(again.intent, 'tidy');
+    assert.equal(again.state, 'proposed');
 });
