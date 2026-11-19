@@ -18,6 +18,13 @@ export class SettingsManager {
     private exportActionsBtn = document.getElementById('export-actions-btn') as HTMLButtonElement;
     private githubLink = document.getElementById('github-link') as HTMLAnchorElement;
 
+    // Folder agent
+    private claudePathInput = document.getElementById('claude-path-input') as HTMLInputElement;
+    private claudePathBtn = document.getElementById('claude-path-btn') as HTMLButtonElement;
+    private folderMenuRow = document.getElementById('folder-menu-row') as HTMLDivElement;
+    private folderMenuCheck = document.getElementById('folder-menu-check') as HTMLInputElement;
+    private folderMenuEnabled = false;
+
     private currentSettings: any = {};
 
     constructor() {
@@ -77,6 +84,11 @@ export class SettingsManager {
             };
         }
 
+        this.claudePathBtn.onclick = async () => {
+            const path = await window.api.agentSelectClaude();
+            if (path) this.claudePathInput.value = path;
+        };
+
         if (this.githubLink) {
             this.githubLink.onclick = (e) => {
                 e.preventDefault();
@@ -101,6 +113,12 @@ export class SettingsManager {
         this.apiKeyInput.value = this.getKeyForService(settings.service);
         this.outputDirInput.value = settings.outputDirectory || '';
         this.generateMetadataCheck.checked = settings.generateMetadata !== false;
+        this.claudePathInput.value = settings.claudePath || '';
+
+        const menu = await window.api.agentFolderMenuGet();
+        this.folderMenuRow.classList.toggle('hidden', !menu.supported);
+        this.folderMenuEnabled = menu.enabled;
+        this.folderMenuCheck.checked = menu.enabled;
 
         await this.updateModelList(settings.model);
     }
@@ -122,6 +140,7 @@ export class SettingsManager {
             model: this.modelSelect.value,
             outputDirectory: this.outputDirInput.value,
             generateMetadata: this.generateMetadataCheck.checked,
+            claudePath: this.claudePathInput.value.trim(),
 
             // Specific models
             geminiModel: (this.serviceSelect.value === 'GEMINI') ? this.modelSelect.value : this.currentSettings.geminiModel,
@@ -131,6 +150,14 @@ export class SettingsManager {
         };
 
         await window.api.saveSettings(newSettings);
+
+        if (this.folderMenuCheck.checked !== this.folderMenuEnabled) {
+            try {
+                this.folderMenuEnabled = await window.api.agentFolderMenuSet(this.folderMenuCheck.checked);
+            } catch (e) {
+                alert('Could not change the folder menu: ' + e);
+            }
+        }
     }
 
     private getKeyForService(service: string) {

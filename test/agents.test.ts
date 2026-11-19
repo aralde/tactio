@@ -4,6 +4,7 @@ import {
     Change, ClaudeResult, applyArgs, isInside, outsideChange, parseAgentCommand, parseResult, proposeArgs, unexpectedChanges
 } from '../src/main/services/agents/claudeCli';
 import { AgentTask, AgentTaskManager } from '../src/main/services/agents/AgentTaskManager';
+import { addMenuCalls, menuCommand, removeMenuCalls } from '../src/main/services/agents/folderMenu';
 
 test('propose runs read-only tools with the proposal schema', () => {
     const args = proposeArgs('rename the photos');
@@ -43,7 +44,8 @@ test('unexpectedChanges flags work that was not approved', () => {
 test('parseAgentCommand reads start and answer commands', () => {
     assert.deepEqual(parseAgentCommand(['Tactio.exe', '--agent', 'C:\\fotos', '--intent', 'rename']), { kind: 'start', dir: 'C:\\fotos', intent: 'rename' });
     assert.deepEqual(parseAgentCommand(['Tactio.exe', '--agent-answer', 'ab12', 'by date']), { kind: 'answer', id: 'ab12', text: 'by date' });
-    assert.equal(parseAgentCommand(['Tactio.exe', '--agent', 'C:\\fotos']), undefined);
+    assert.deepEqual(parseAgentCommand(['Tactio.exe', '--agent', 'C:\\fotos']), { kind: 'open', dir: 'C:\\fotos' });
+    assert.equal(parseAgentCommand(['Tactio.exe']), undefined);
 });
 
 function harness(results: ClaudeResult[]) {
@@ -110,4 +112,13 @@ test('tasks left running by a restart are marked failed', () => {
     const data: Record<string, any> = { agentTasks: [{ id: 'a', state: 'applying' }] };
     const manager = new AgentTaskManager({ get: k => data[k], set: (k, v) => (data[k] = v) }, { run: async () => ({ isError: true, text: '' }) }, { changed: () => {} });
     assert.equal(manager.get('a')!.state, 'failed');
+});
+
+test('the folder menu launches Tactio on the clicked folder', () => {
+    assert.equal(menuCommand('C:\\T\\Tactio.exe', undefined, '%1'), '"C:\\T\\Tactio.exe" --agent "%1"');
+    assert.equal(menuCommand('C:\\e\\electron.exe', 'C:\\src\\tactio', '%V'), '"C:\\e\\electron.exe" "C:\\src\\tactio" --agent "%V"');
+    const calls = addMenuCalls('C:\\T\\Tactio.exe');
+    assert.equal(calls.length, 6);
+    assert.ok(calls.some(c => c[1].endsWith('\\Background\\shell\\Tactio\\command') && c[4].endsWith('--agent "%V"')));
+    assert.deepEqual(removeMenuCalls().map(c => c[0]), ['delete', 'delete']);
 });

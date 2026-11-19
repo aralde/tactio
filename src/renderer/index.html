@@ -13,6 +13,7 @@
         <div id="drag-handle"></div>
         <div id="window-controls">
             <div id="pin-icon" title="Toggle Pin" class="control-icon pinned">📌</div>
+            <div id="agent-icon" title="Folder agent" class="control-icon">🤖</div>
             <div id="catalog-icon" title="Browse Prompt Catalog" class="control-icon">🌐</div>
             <div id="settings-icon" title="Settings" class="control-icon">⚙️</div>
             <div id="close-btn" title="Close" class="control-icon">✕</div>
@@ -96,6 +97,18 @@
             </div>
 
             <div style="margin-top: 15px; border-top: 1px solid #444; padding-top: 10px;">
+                <label for="claude-path-input">Claude Code path (folder agent):</label>
+                <div class="input-group">
+                    <input type="text" id="claude-path-input" placeholder="Auto-detect">
+                    <button id="claude-path-btn" title="Browse">...</button>
+                </div>
+                <div id="folder-menu-row" style="display: flex; align-items: center;">
+                    <input type="checkbox" id="folder-menu-check" style="margin-right: 8px;">
+                    <label for="folder-menu-check" style="margin: 0; cursor: pointer;">Add Tactio to the folder right-click menu</label>
+                </div>
+            </div>
+
+            <div style="margin-top: 15px; border-top: 1px solid #444; padding-top: 10px;">
                 <label style="margin-bottom: 5px;">Manage Actions:</label>
                 <div style="display: flex; gap: 10px;">
                     <button id="import-actions-btn" style="flex: 1; padding: 5px;">Import (Zip)</button>
@@ -172,6 +185,31 @@
                 <button id="custom-prompt-apply-btn">Apply</button>
                 <button id="custom-prompt-cancel-btn">Cancel</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Folder Agent Modal -->
+    <div id="agent-modal" class="hidden">
+        <div class="modal-content agent-content">
+            <h3>Folder agent</h3>
+            <div id="agent-problem" class="agent-problem hidden"></div>
+
+            <label for="agent-dir-input">Folder:</label>
+            <div class="input-group">
+                <input type="text" id="agent-dir-input" placeholder="Pick a folder">
+                <button id="agent-dir-btn" title="Browse">...</button>
+            </div>
+
+            <label for="agent-intent-input">What should Claude do there?</label>
+            <textarea id="agent-intent-input" class="agent-textarea" placeholder="e.g. Rename the photos by the date they were taken"></textarea>
+
+            <div class="modal-actions">
+                <button id="agent-close-btn" class="agent-secondary">Close</button>
+                <button id="agent-start-btn" class="agent-primary">Propose</button>
+            </div>
+
+            <div class="section-header agent-tasks-header">Tasks</div>
+            <div id="agent-task-list" class="agent-task-list"></div>
         </div>
     </div>
 
