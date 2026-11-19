@@ -7,10 +7,17 @@ export interface Change {
     detail?: string;
 }
 
+export interface Question {
+    question: string;
+    hint?: string;
+    options: string[];
+}
+
 export interface Proposal {
     summary: string;
+    plan: string[];
     changes: Change[];
-    question?: string;
+    questions?: Question[];
 }
 
 export interface Applied {
@@ -42,10 +49,22 @@ export const proposalSchema = {
     type: 'object',
     properties: {
         summary: { type: 'string' },
+        plan: { type: 'array', items: { type: 'string' } },
         changes: { type: 'array', items: changeSchema },
-        question: { type: 'string' }
+        questions: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    question: { type: 'string' },
+                    hint: { type: 'string' },
+                    options: { type: 'array', items: { type: 'string' } }
+                },
+                required: ['question', 'options']
+            }
+        }
     },
-    required: ['summary', 'changes']
+    required: ['summary', 'plan', 'changes']
 };
 
 export const appliedSchema = {
@@ -89,16 +108,18 @@ export function proposePrompt(intent: string): string {
         '',
         intent,
         '',
-        'Inspect the folder with your read-only tools and propose the exact changes that do this. Change nothing yet.',
-        'Every path is relative to the current folder and stays inside it: no absolute paths, no "..".',
+        'Inspect the folder with your read-only tools and work out how to do this. Change nothing yet.',
+        '"summary" is a title of at most 12 words saying what you will do. "plan" is 2 to 6 short, plain steps saying what you will do, not how.',
+        '"changes" lists every exact change. Paths are relative to the current folder and stay inside it: no absolute paths, no "..".',
         'Ops: rename and move need "to"; mkdir, create, edit and delete need only "path"; use "detail" to say what an edit or create writes.',
-        'If the request is ambiguous, ask one short question in "question" and leave "changes" empty.'
+        'If a choice would change the result a lot, ask about it in "questions" (at most 3), each with 2 to 4 short options, and leave "changes" empty.',
+        'Ask nothing you can decide from the files themselves.'
     ].join('\n');
 }
 
 export function refinePrompt(feedback: string): string {
     return [
-        'The user answered or asked for changes to your proposal:',
+        'The user answered your questions or asked for changes to your plan:',
         '',
         feedback,
         '',
@@ -151,6 +172,14 @@ export function undoArgs(taskId: string, sessionId: string, done: Change[]): str
     return writeArgs(undoPrompt(taskId, done), sessionId);
 }
 
+const AUTH_ERROR = /oauth|failed to authenticate|not logged in|please run \/login|invalid api key/i;
+
+/** Turns Claude's failure text into something the user can act on. */
+export function friendlyError(text: string): string {
+    if (AUTH_ERROR.test(text)) return 'Your Claude Code login expired or is missing. Open a terminal, run `claude` and use /login, then retry.';
+    return text;
+}
+
 /** Reads the single JSON object `--output-format json` prints at the end of a run. */
 export function parseResult(stdout: string): ClaudeResult | undefined {
     const line = stdout.trim().split('\n').reverse().find(l => l.trim().startsWith('{'));
@@ -190,20 +219,30 @@ export function unexpectedChanges(approved: Change[], done: Change[]): Change[] 
 }
 
 export type AgentCommand =
+    | { kind: 'open'; dir: string }
     | { kind: 'start'; dir: string; intent: string }
     | { kind: 'answer'; id: string; text: string };
 
-/** Reads `--agent <dir> --intent <text>` or `--agent-answer <id> <text>` from a command line. */
+/**
+ * Reads `--agent <dir>` (the folder menu: open the agent panel there), `--agent <dir> --intent <text>`
+ * or `--agent-answer <id> <text>` from a command line.
+ */
 export function parseAgentCommand(argv: string[]): AgentCommand | undefined {
-    const after = (flag: string) => {
+    // Accepts `--flag=value` and `--flag value`; a following `--switch` (Chromium adds some) is never a value.
+    const values = (flag: string, count: number): string[] | undefined => {
+        const joined = argv.find(a => a.startsWith(`${flag}=`));
         const i = argv.indexOf(flag);
-        return i >= 0 ? argv.slice(i + 1) : undefined;
+        if (joined === undefined && i < 0) return undefined;
+        const rest = joined !== undefined ? [joined.slice(flag.length + 1), ...argv.slice(argv.indexOf(joined) + 1)] : argv.slice(i + 1);
+        const taken = rest.slice(0, count);
+        return taken.length === count && taken.every(v => v && !v.startsWith('--')) ? taken : undefined;
     };
-    const answer = after('--agent-answer');
-    if (answer && answer[0] && answer[1]) return { kind: 'answer', id: answer[0], text: answer[1] };
-    const dir = after('--agent')?.[0];
-    const intent = after('--intent')?.[0];
+    const answer = values('--agent-answer', 2);
+    if (answer) return { kind: 'answer', id: answer[0], text: answer[1] };
+    const dir = values('--agent', 1)?.[0];
+    const intent = values('--intent', 1)?.[0];
     if (dir && intent) return { kind: 'start', dir, intent };
+    if (dir) return { kind: 'open', dir };
     return undefined;
 }
 

@@ -17,6 +17,48 @@ export interface WindowAPI {
     openPromptCatalog: () => void;
     openExternal: (url: string) => void;
     log: (message: string, data?: any) => void;
+
+    agentGet: (id: string) => Promise<AgentTask | undefined>;
+    agentStart: (dir: string, intent: string) => Promise<string>;
+    agentRetry: (id: string) => Promise<string>;
+    agentRefine: (id: string, text: string) => Promise<void>;
+    agentApprove: (id: string) => Promise<void>;
+    agentCancel: (id: string) => Promise<void>;
+    agentUndo: (id: string) => Promise<void>;
+    agentStatus: () => Promise<{ path: string; problem?: string }>;
+    agentSelectFolder: () => Promise<string | null>;
+    agentSelectClaude: () => Promise<string | null>;
+    agentFolderMenuGet: () => Promise<{ supported: boolean; enabled: boolean }>;
+    agentFolderMenuSet: (enabled: boolean) => Promise<boolean>;
+    agentFit: (height: number) => void;
+    agentHide: () => void;
+    onAgentShow: (callback: (view: { dir?: string; taskId?: string }) => void) => void;
+    onAgentTask: (callback: (task: AgentTask) => void) => void;
+}
+
+export interface AgentChange {
+    op: string;
+    path: string;
+    to?: string;
+    detail?: string;
+}
+
+export interface AgentTask {
+    id: string;
+    dir: string;
+    intent: string;
+    state: 'proposing' | 'awaiting_input' | 'proposed' | 'applying' | 'applied' | 'undoing' | 'undone' | 'cancelled' | 'failed';
+    proposal?: {
+        summary: string;
+        plan: string[];
+        changes: AgentChange[];
+        questions?: { question: string; hint?: string; options: string[] }[];
+    };
+    applied?: { done: AgentChange[]; failed: { change: AgentChange; reason: string }[] };
+    unexpected?: AgentChange[];
+    undone?: { done: AgentChange[]; failed: { change: AgentChange; reason: string }[] };
+    error?: string;
+    updatedAt: string;
 }
 
 declare global {
@@ -65,4 +107,5 @@ export interface AppConfig {
 
     actions: Action[];
     promptVariables?: any[];
+    claudePath?: string;
 }

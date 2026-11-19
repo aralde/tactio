@@ -6,7 +6,7 @@
   "scripts": {
     "start": "npm run build:renderer && tsc && electron .",
     "build": "npm run build:renderer && tsc",
-    "build:renderer": "copy src\\renderer\\index.html dist\\renderer\\index.html && copy src\\renderer\\styles.css dist\\renderer\\styles.css && npx esbuild src/renderer/renderer.ts --bundle --outfile=dist/renderer/renderer.bundle.js --platform=browser --target=es2020",
+    "build:renderer": "copy src\\renderer\\index.html dist\\renderer\\index.html && copy src\\renderer\\styles.css dist\\renderer\\styles.css && npx esbuild src/renderer/renderer.ts --bundle --outfile=dist/renderer/renderer.bundle.js --platform=browser --target=es2020 && copy src\\renderer\\agent.html dist\\renderer\\agent.html && copy src\\renderer\\agent.css dist\\renderer\\agent.css && npx esbuild src/renderer/agent.ts --bundle --outfile=dist/renderer/agent.bundle.js --platform=browser --target=es2020",
     "build:portable": "npm run build:renderer && tsc && electron-builder --win portable",
     "build:installer": "npm run build:renderer && tsc && electron-builder --win nsis",
     "rebuild": "electron-rebuild -f -w robotjs",

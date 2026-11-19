@@ -4,6 +4,7 @@ import {
     Change, ClaudeResult, applyArgs, isInside, outsideChange, parseAgentCommand, parseResult, proposeArgs, unexpectedChanges
 } from '../src/main/services/agents/claudeCli';
 import { AgentTask, AgentTaskManager } from '../src/main/services/agents/AgentTaskManager';
+import { addMenuCalls, menuCommand, removeMenuCalls } from '../src/main/services/agents/folderMenu';
 
 test('propose runs read-only tools with the proposal schema', () => {
     const args = proposeArgs('rename the photos');
@@ -43,7 +44,10 @@ test('unexpectedChanges flags work that was not approved', () => {
 test('parseAgentCommand reads start and answer commands', () => {
     assert.deepEqual(parseAgentCommand(['Tactio.exe', '--agent', 'C:\\fotos', '--intent', 'rename']), { kind: 'start', dir: 'C:\\fotos', intent: 'rename' });
     assert.deepEqual(parseAgentCommand(['Tactio.exe', '--agent-answer', 'ab12', 'by date']), { kind: 'answer', id: 'ab12', text: 'by date' });
-    assert.equal(parseAgentCommand(['Tactio.exe', '--agent', 'C:\\fotos']), undefined);
+    assert.deepEqual(parseAgentCommand(['Tactio.exe', '--agent', 'C:\\fotos']), { kind: 'open', dir: 'C:\\fotos' });
+    assert.deepEqual(parseAgentCommand(['Tactio.exe', '--allow-file-access-from-files', '--agent=C:\\my files']), { kind: 'open', dir: 'C:\\my files' });
+    assert.equal(parseAgentCommand(['Tactio.exe', '--agent', '--allow-file-access-from-files', 'C:\\fotos']), undefined);
+    assert.equal(parseAgentCommand(['Tactio.exe']), undefined);
 });
 
 function harness(results: ClaudeResult[]) {
@@ -64,7 +68,7 @@ const tick = () => new Promise(r => setImmediate(r));
 test('a task goes from proposal to applied to undone', async () => {
     const change: Change = { op: 'rename', path: 'a.jpg', to: 'b.jpg' };
     const { manager, calls, seen } = harness([
-        { sessionId: 's1', isError: false, text: '', output: { summary: 'Rename', changes: [change] } },
+        { sessionId: 's1', isError: false, text: '', output: { summary: 'Rename', plan: ['Rename a.jpg'], changes: [change] } },
         { sessionId: 's1', isError: false, text: '', output: { done: [change, { op: 'delete', path: 'x' }], failed: [] } },
         { sessionId: 's1', isError: false, text: '', output: { done: [change], failed: [] } }
     ]);
@@ -84,8 +88,8 @@ test('a task goes from proposal to applied to undone', async () => {
 
 test('a question waits for an answer that resumes the session', async () => {
     const { manager, calls } = harness([
-        { sessionId: 's2', isError: false, text: '', output: { summary: '', changes: [], question: 'By date?' } },
-        { sessionId: 's2', isError: false, text: '', output: { summary: 'ok', changes: [{ op: 'mkdir', path: '2026' }] } }
+        { sessionId: 's2', isError: false, text: '', output: { summary: '', plan: [], changes: [], questions: [{ question: 'Group by?', options: ['Date', 'Type'] }] } },
+        { sessionId: 's2', isError: false, text: '', output: { summary: 'ok', plan: ['Make 2026'], changes: [{ op: 'mkdir', path: '2026' }] } }
     ]);
     const task = manager.start('/tmp/f', 'sort');
     await tick();
@@ -98,7 +102,7 @@ test('a question waits for an answer that resumes the session', async () => {
 
 test('a proposal that leaves the folder fails without asking', async () => {
     const { manager } = harness([
-        { sessionId: 's3', isError: false, text: '', output: { summary: 'x', changes: [{ op: 'move', path: 'a', to: '../a' }] } }
+        { sessionId: 's3', isError: false, text: '', output: { summary: 'x', plan: [], changes: [{ op: 'move', path: 'a', to: '../a' }] } }
     ]);
     const task = manager.start('/tmp/f', 'move');
     await tick();
@@ -110,4 +114,28 @@ test('tasks left running by a restart are marked failed', () => {
     const data: Record<string, any> = { agentTasks: [{ id: 'a', state: 'applying' }] };
     const manager = new AgentTaskManager({ get: k => data[k], set: (k, v) => (data[k] = v) }, { run: async () => ({ isError: true, text: '' }) }, { changed: () => {} });
     assert.equal(manager.get('a')!.state, 'failed');
+});
+
+test('the folder menu launches Tactio on the clicked folder', () => {
+    assert.equal(menuCommand('C:\\T\\Tactio.exe', undefined, '%1'), '"C:\\T\\Tactio.exe" --agent="%1"');
+    assert.equal(menuCommand('C:\\e\\electron.exe', 'C:\\src\\tactio', '%V'), '"C:\\e\\electron.exe" "C:\\src\\tactio" --agent="%V"');
+    const calls = addMenuCalls('C:\\T\\Tactio.exe');
+    assert.equal(calls.length, 6);
+    assert.ok(calls.some(c => c[1].endsWith('\\Background\\shell\\Tactio\\command') && c[4].endsWith('--agent="%V"')));
+    assert.deepEqual(removeMenuCalls().map(c => c[0]), ['delete', 'delete']);
+});
+
+test('an expired login becomes an actionable message, and the task can be retried', async () => {
+    const { manager } = harness([
+        { isError: true, text: 'Failed to authenticate: OAuth session expired and could not be refreshed' },
+        { sessionId: 's4', isError: false, text: '', output: { summary: 'ok', plan: ['x'], changes: [] } }
+    ]);
+    const task = manager.start('/tmp/f', 'tidy');
+    await tick();
+    assert.equal(task.state, 'failed');
+    assert.match(task.error!, /run `claude` and use \/login/);
+    const again = manager.retry(task.id);
+    await tick();
+    assert.equal(again.intent, 'tidy');
+    assert.equal(again.state, 'proposed');
 });

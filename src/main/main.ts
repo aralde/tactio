@@ -10,9 +10,11 @@ import { LLMFactory } from './services/llm/LLMFactory';
 import { LLMConfig } from './services/llm/LLMParameters';
 import { simulatePaste } from './automation';
 import { SystemStyles } from './prompts';
-import { AgentTaskManager } from './services/agents/AgentTaskManager';
+import { AgentTask, AgentTaskManager } from './services/agents/AgentTaskManager';
+import { AgentWindow } from './services/window/AgentWindow';
 import { AgentNotifications } from './services/agents/AgentNotifications';
 import { ClaudeRunner, resolveClaudePath } from './services/agents/ClaudeRunner';
+import { isFolder, registerAgentIpc, requireFolder } from './services/agents/agentIpc';
 import { parseAgentCommand } from './services/agents/claudeCli';
 
 
@@ -26,6 +28,7 @@ let trayManager: TrayManager;
 let automationManager: AutomationManager;
 let fileManager: FileManager;
 let agentTasks: AgentTaskManager;
+let agentWindow: AgentWindow;
 let catalogWindow: BrowserWindow | null = null;
 
 // Register Custom Protocol
@@ -37,15 +40,17 @@ if (process.defaultApp) {
     app.setAsDefaultProtocolClient('tactio');
 }
 
-const gotTheLock = app.requestSingleInstanceLock();
+// The second instance hands over its own argv: the commandLine Electron passes has Chromium's switches mixed in.
+const gotTheLock = app.requestSingleInstanceLock({ argv: process.argv });
 
 if (!gotTheLock) {
     app.quit();
 } else {
-    app.on('second-instance', (event, commandLine, workingDirectory) => {
+    app.on('second-instance', (event, commandLine, workingDirectory, additionalData) => {
+        const argv: string[] = (additionalData as { argv?: string[] })?.argv || commandLine;
         // Someone tried to run a second instance, we should focus our window.
-        // Agent commands run in the background, so they leave the window alone.
-        if (windowManager && !parseAgentCommand(commandLine)) {
+        // Agent commands open the agent window instead.
+        if (windowManager && !parseAgentCommand(argv)) {
             const win = windowManager.getWindow();
             if (win) {
                 if (win.isMinimized()) win.restore();
@@ -59,7 +64,7 @@ if (!gotTheLock) {
             handleDeepLink(url);
         }
 
-        handleAgentCommand(commandLine);
+        handleAgentCommand(argv);
     });
 
     app.on('open-url', (event, url) => {
@@ -93,9 +98,17 @@ if (!gotTheLock) {
         fileManager = new FileManager(store);
 
         app.setAppUserModelId('com.aralde.tactio');
-        const notifications = new AgentNotifications();
+        agentWindow = new AgentWindow();
+        const notifications = new AgentNotifications(
+            task => agentWindow.show({ taskId: task.id }),
+            task => {
+                agentWindow.send('agent-task', task);
+                updateTrayTasks();
+            }
+        );
         agentTasks = new AgentTaskManager(store, new ClaudeRunner(() => resolveClaudePath(store.get('claudePath'))), notifications);
-        notifications.attach(agentTasks);
+        registerAgentIpc(store, agentWindow, agentTasks);
+        updateTrayTasks();
         handleAgentCommand(process.argv);
 
         app.on('activate', () => {
@@ -118,11 +131,29 @@ app.on('window-all-closed', () => {
     }
 });
 
+const TASK_LABELS: Record<AgentTask['state'], string> = {
+    proposing: 'planning…',
+    awaiting_input: 'has a question',
+    proposed: 'plan ready',
+    applying: 'running…',
+    applied: 'done',
+    undoing: 'undoing…',
+    undone: 'undone',
+    cancelled: 'cancelled',
+    failed: 'failed'
+};
+
+function updateTrayTasks() {
+    const tasks = agentTasks.list().map(t => ({ id: t.id, label: `${path.basename(t.dir) || t.dir} · ${TASK_LABELS[t.state]}` }));
+    trayManager.setAgentTasks(tasks, taskId => agentWindow.show({ taskId }));
+}
+
 function handleAgentCommand(argv: string[]) {
     const command = parseAgentCommand(argv);
     if (!command || !agentTasks) return;
     try {
-        if (command.kind === 'start') agentTasks.start(command.dir, command.intent);
+        if (command.kind === 'open') agentWindow.show(isFolder(command.dir) ? { dir: command.dir } : {});
+        else if (command.kind === 'start') agentTasks.start(requireFolder(command.dir), command.intent);
         else agentTasks.refine(command.id, command.text);
     } catch (e) {
         console.error('[Agent] Command failed:', e);
@@ -218,6 +249,7 @@ ipcMain.handle('get-settings', () => {
         promptVariables: s.get('promptVariables') || [],
 
         generateMetadata: s.get('generateMetadata') !== false,
+        claudePath: s.get('claudePath') || '',
         actions: s.get('actions') || []
     };
 });
@@ -248,6 +280,7 @@ ipcMain.handle('save-settings', (event, newSettings) => {
     if (newSettings.actions !== undefined) store.set('actions', newSettings.actions);
     if (newSettings.promptVariables !== undefined) store.set('promptVariables', newSettings.promptVariables);
     if (newSettings.generateMetadata !== undefined) store.set('generateMetadata', newSettings.generateMetadata);
+    if (newSettings.claudePath !== undefined) store.set('claudePath', newSettings.claudePath);
 
     // Notify renderers
     windowManager.sendConfig(store.getAll());

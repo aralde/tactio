@@ -23,7 +23,7 @@ export class Store {
 
         // Initialize ActionsManager
         const isDev = !app.isPackaged;
-        const actionsBasePath = isDev ? process.cwd() : userDataPath;
+        const actionsBasePath = isDev ? app.getAppPath() : userDataPath;
         console.log(`[Store] Initializing ActionsManager at: ${actionsBasePath}`);
         this.actionsManager = new ActionsManager(actionsBasePath);
 
@@ -40,7 +40,7 @@ export class Store {
         // Legacy paths logic
         const isDev = !app.isPackaged;
         const legacyBasePath = isDev
-            ? process.cwd()
+            ? app.getAppPath()
             : (process.env.PORTABLE_EXECUTABLE_DIR || path.dirname(app.getPath('exe')));
 
         const legacyConfigPath = path.join(legacyBasePath, 'config.json');

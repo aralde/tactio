@@ -4,5 +4,10 @@
     "rootDir": ".",
     "outDir": "./dist-test"
   },
-  "include": ["src/main/services/agents/claudeCli.ts", "src/main/services/agents/AgentTaskManager.ts", "test/**/*"]
+  "include": [
+    "src/main/services/agents/claudeCli.ts",
+    "src/main/services/agents/AgentTaskManager.ts",
+    "src/main/services/agents/folderMenu.ts",
+    "test/**/*"
+  ]
 }
