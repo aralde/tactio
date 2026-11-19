@@ -23,8 +23,9 @@ contextBridge.exposeInMainWorld('api', {
     openExternal: (url: string) => ipcRenderer.send('open-external', url),
     log: (message: string, data?: any) => ipcRenderer.send('log', message, data),
 
-    agentList: () => ipcRenderer.invoke('agent-list'),
+    agentGet: (id: string) => ipcRenderer.invoke('agent-get', id),
     agentStart: (dir: string, intent: string) => ipcRenderer.invoke('agent-start', dir, intent),
+    agentRetry: (id: string) => ipcRenderer.invoke('agent-retry', id),
     agentRefine: (id: string, text: string) => ipcRenderer.invoke('agent-refine', id, text),
     agentApprove: (id: string) => ipcRenderer.invoke('agent-approve', id),
     agentCancel: (id: string) => ipcRenderer.invoke('agent-cancel', id),
@@ -34,10 +35,12 @@ contextBridge.exposeInMainWorld('api', {
     agentSelectClaude: () => ipcRenderer.invoke('agent-select-claude'),
     agentFolderMenuGet: () => ipcRenderer.invoke('agent-folder-menu-get'),
     agentFolderMenuSet: (enabled: boolean) => ipcRenderer.invoke('agent-folder-menu-set', enabled),
-    onAgentTasks: (callback: (tasks: any[]) => void) => {
-        ipcRenderer.on('agent-tasks', (event, tasks) => callback(tasks));
+    agentFit: (height: number) => ipcRenderer.send('agent-fit', height),
+    agentHide: () => ipcRenderer.send('agent-hide'),
+    onAgentShow: (callback: (view: { dir?: string; taskId?: string }) => void) => {
+        ipcRenderer.on('agent-show', (event, view) => callback(view));
     },
-    onAgentOpen: (callback: (dir: string) => void) => {
-        ipcRenderer.on('agent-open', (event, dir) => callback(dir));
+    onAgentTask: (callback: (task: any) => void) => {
+        ipcRenderer.on('agent-task', (event, task) => callback(task));
     }
 });

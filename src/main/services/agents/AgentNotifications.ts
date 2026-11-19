@@ -3,8 +3,8 @@ import * as path from 'path';
 import { AgentNotifier, AgentTask } from './AgentTaskManager';
 
 /**
- * Tells the user about each task with Windows notifications and keeps the agent panel in sync.
- * Clicking a notification opens the panel, where the task can be reviewed, answered or undone.
+ * Tells the user about each task with Windows notifications. Clicking one opens the agent window on
+ * that task, to answer, run, undo or retry it.
  */
 export class AgentNotifications implements AgentNotifier {
     // Electron drops the click handler of a notification that gets garbage collected.
@@ -17,9 +17,9 @@ export class AgentNotifications implements AgentNotifier {
         const folder = path.basename(task.dir) || task.dir;
         switch (task.state) {
             case 'proposed':
-                return this.show(task, `Proposal ready · ${folder}`, `${task.proposal!.summary} (${task.proposal!.changes.length} changes)`);
+                return this.show(task, `Plan ready · ${folder}`, task.proposal!.summary);
             case 'awaiting_input':
-                return this.show(task, `Question · ${folder}`, task.proposal!.question!);
+                return this.show(task, `A question first · ${folder}`, task.proposal!.questions![0].question);
             case 'applied': {
                 const failed = task.applied!.failed.length;
                 const extra = task.unexpected!.length;

@@ -4,7 +4,7 @@ import * as path from 'path';
 import { AgentTaskManager } from './AgentTaskManager';
 import { claudeProblem, resolveClaudePath } from './ClaudeRunner';
 import { MENU_KEYS, addMenuCalls, removeMenuCalls } from './folderMenu';
-import { WindowManager } from '../window/WindowManager';
+import { AgentWindow } from '../window/AgentWindow';
 
 function reg(args: string[]): Promise<boolean> {
     return new Promise(resolve => execFile('reg', args, { windowsHide: true }, err => resolve(!err)));
@@ -29,13 +29,16 @@ async function setFolderMenu(enabled: boolean): Promise<boolean> {
     return true;
 }
 
-export function registerAgentIpc(store: any, windowManager: WindowManager, tasks: AgentTaskManager) {
-    ipcMain.handle('agent-list', () => tasks.list());
+export function registerAgentIpc(store: any, agentWindow: AgentWindow, tasks: AgentTaskManager) {
+    ipcMain.handle('agent-get', (event, id: string) => tasks.get(id));
     ipcMain.handle('agent-start', (event, dir: string, intent: string) => tasks.start(dir, intent).id);
+    ipcMain.handle('agent-retry', (event, id: string) => tasks.retry(id).id);
     ipcMain.handle('agent-refine', (event, id: string, text: string) => tasks.refine(id, text));
     ipcMain.handle('agent-approve', (event, id: string) => tasks.approve(id));
     ipcMain.handle('agent-cancel', (event, id: string) => tasks.cancel(id));
     ipcMain.handle('agent-undo', (event, id: string) => tasks.undo(id));
+    ipcMain.on('agent-fit', (event, height: number) => agentWindow.fit(height));
+    ipcMain.on('agent-hide', () => agentWindow.hide());
 
     ipcMain.handle('agent-status', async () => {
         const bin = resolveClaudePath(store.get('claudePath'));
@@ -43,17 +46,15 @@ export function registerAgentIpc(store: any, windowManager: WindowManager, tasks
     });
 
     ipcMain.handle('agent-select-folder', async () => {
-        const win = windowManager.getWindow();
+        const win = agentWindow.getWindow();
         if (!win) return null;
         const res = await dialog.showOpenDialog(win, { properties: ['openDirectory'] });
         return res.canceled ? null : res.filePaths[0];
     });
 
-    ipcMain.handle('agent-select-claude', async () => {
-        const win = windowManager.getWindow();
-        if (!win) return null;
+    ipcMain.handle('agent-select-claude', async (event) => {
         const filters = process.platform === 'win32' ? [{ name: 'Claude Code', extensions: ['exe'] }] : [];
-        const res = await dialog.showOpenDialog(win, { properties: ['openFile'], filters });
+        const res = await dialog.showOpenDialog({ properties: ['openFile'], filters });
         return res.canceled ? null : res.filePaths[0];
     });
 

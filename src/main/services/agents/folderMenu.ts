@@ -6,7 +6,7 @@ export const MENU_KEYS = [
     { key: `${ROOT}\\Background\\shell\\Tactio`, placeholder: '%V' }
 ];
 
-export const MENU_LABEL = 'Tactio: do something here…';
+export const MENU_LABEL = 'Ask the agent to…';
 
 /** The launch command: the exe alone when packaged, or electron plus the app path in development. */
 export function menuCommand(exe: string, appArg: string | undefined, placeholder: string): string {
