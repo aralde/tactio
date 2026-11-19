@@ -379,7 +379,8 @@ body.loading * {
 /* Modal Overlay */
 #settings-modal,
 #prompt-manager-modal,
-#custom-prompt-modal {
+#custom-prompt-modal,
+#agent-modal {
     position: fixed;
     top: 0;
     left: 0;
@@ -855,3 +856,144 @@ textarea#custom-prompt-input {
 
 
 
+
+/* Folder Agent */
+.agent-content {
+    max-width: 360px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-sizing: border-box;
+}
+
+.agent-problem {
+    background: #3a2a1a;
+    border: 1px solid #6b4a1f;
+    color: #f0c080;
+    border-radius: 4px;
+    padding: 8px;
+    font-size: 11px;
+    margin-bottom: 12px;
+}
+
+.agent-textarea {
+    width: 100%;
+    height: 64px;
+    background: #1e1e1e;
+    color: white;
+    border: 1px solid #333;
+    border-radius: 4px;
+    resize: none;
+    padding: 8px;
+    font-family: 'Segoe UI', sans-serif;
+    font-size: 11px;
+    box-sizing: border-box;
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+.agent-textarea:focus {
+    outline: none;
+    border-color: #0078d4;
+}
+
+.agent-reply {
+    height: 44px;
+    margin-top: 8px;
+}
+
+.modal-actions .agent-primary {
+    background: #0078d4;
+    color: white;
+}
+
+.modal-actions .agent-primary:hover {
+    background: #106ebe;
+}
+
+.modal-actions .agent-secondary {
+    background: transparent;
+    border: 1px solid #444;
+    color: #ccc;
+}
+
+.modal-actions .agent-secondary:hover {
+    background: #333;
+}
+
+.agent-tasks-header {
+    margin-top: 16px;
+    border-top: 1px solid #444;
+    padding-top: 10px;
+}
+
+.agent-task-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.agent-empty {
+    font-size: 11px;
+    color: #888;
+}
+
+.agent-task {
+    background: #1e1e1e;
+    border: 1px solid #333;
+    border-radius: 4px;
+    padding: 8px;
+    font-size: 11px;
+}
+
+.agent-task-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    font-weight: 600;
+}
+
+.agent-task-folder {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.agent-task-state {
+    color: #999;
+    flex-shrink: 0;
+}
+
+.agent-proposed .agent-task-state,
+.agent-awaiting_input .agent-task-state {
+    color: #4a9eff;
+}
+
+.agent-failed .agent-task-state {
+    color: #e07070;
+}
+
+.agent-task-intent {
+    color: #888;
+    margin: 4px 0;
+}
+
+.agent-task-text {
+    margin: 6px 0;
+}
+
+.agent-task-warn {
+    color: #e0a050;
+    margin: 6px 0;
+}
+
+.agent-changes {
+    margin: 4px 0;
+    padding-left: 16px;
+    max-height: 140px;
+    overflow-y: auto;
+    font-family: Consolas, monospace;
+    font-size: 10.5px;
+    color: #ccc;
+    -webkit-user-select: text;
+    user-select: text;
+}
