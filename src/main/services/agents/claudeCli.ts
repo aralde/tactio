@@ -228,14 +228,19 @@ export type AgentCommand =
  * or `--agent-answer <id> <text>` from a command line.
  */
 export function parseAgentCommand(argv: string[]): AgentCommand | undefined {
-    const after = (flag: string) => {
+    // Accepts `--flag=value` and `--flag value`; a following `--switch` (Chromium adds some) is never a value.
+    const values = (flag: string, count: number): string[] | undefined => {
+        const joined = argv.find(a => a.startsWith(`${flag}=`));
         const i = argv.indexOf(flag);
-        return i >= 0 ? argv.slice(i + 1) : undefined;
+        if (joined === undefined && i < 0) return undefined;
+        const rest = joined !== undefined ? [joined.slice(flag.length + 1), ...argv.slice(argv.indexOf(joined) + 1)] : argv.slice(i + 1);
+        const taken = rest.slice(0, count);
+        return taken.length === count && taken.every(v => v && !v.startsWith('--')) ? taken : undefined;
     };
-    const answer = after('--agent-answer');
-    if (answer && answer[0] && answer[1]) return { kind: 'answer', id: answer[0], text: answer[1] };
-    const dir = after('--agent')?.[0];
-    const intent = after('--intent')?.[0];
+    const answer = values('--agent-answer', 2);
+    if (answer) return { kind: 'answer', id: answer[0], text: answer[1] };
+    const dir = values('--agent', 1)?.[0];
+    const intent = values('--intent', 1)?.[0];
     if (dir && intent) return { kind: 'start', dir, intent };
     if (dir) return { kind: 'open', dir };
     return undefined;

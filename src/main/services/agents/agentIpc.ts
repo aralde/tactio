@@ -1,10 +1,24 @@
 import { dialog, ipcMain } from 'electron';
 import { execFile } from 'child_process';
+import * as fs from 'fs';
 import * as path from 'path';
 import { AgentTaskManager } from './AgentTaskManager';
 import { claudeProblem, resolveClaudePath } from './ClaudeRunner';
 import { MENU_KEYS, addMenuCalls, removeMenuCalls } from './folderMenu';
 import { AgentWindow } from '../window/AgentWindow';
+
+export function isFolder(dir: string): boolean {
+    try {
+        return fs.statSync(dir).isDirectory();
+    } catch {
+        return false;
+    }
+}
+
+export function requireFolder(dir: string): string {
+    if (!isFolder(dir)) throw new Error(`Folder not found: ${dir}`);
+    return dir;
+}
 
 function reg(args: string[]): Promise<boolean> {
     return new Promise(resolve => execFile('reg', args, { windowsHide: true }, err => resolve(!err)));
@@ -31,8 +45,12 @@ async function setFolderMenu(enabled: boolean): Promise<boolean> {
 
 export function registerAgentIpc(store: any, agentWindow: AgentWindow, tasks: AgentTaskManager) {
     ipcMain.handle('agent-get', (event, id: string) => tasks.get(id));
-    ipcMain.handle('agent-start', (event, dir: string, intent: string) => tasks.start(dir, intent).id);
-    ipcMain.handle('agent-retry', (event, id: string) => tasks.retry(id).id);
+    ipcMain.handle('agent-start', (event, dir: string, intent: string) => tasks.start(requireFolder(dir), intent).id);
+    ipcMain.handle('agent-retry', (event, id: string) => {
+        const task = tasks.get(id);
+        if (task) requireFolder(task.dir);
+        return tasks.retry(id).id;
+    });
     ipcMain.handle('agent-refine', (event, id: string, text: string) => tasks.refine(id, text));
     ipcMain.handle('agent-approve', (event, id: string) => tasks.approve(id));
     ipcMain.handle('agent-cancel', (event, id: string) => tasks.cancel(id));

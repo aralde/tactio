@@ -45,6 +45,8 @@ test('parseAgentCommand reads start and answer commands', () => {
     assert.deepEqual(parseAgentCommand(['Tactio.exe', '--agent', 'C:\\fotos', '--intent', 'rename']), { kind: 'start', dir: 'C:\\fotos', intent: 'rename' });
     assert.deepEqual(parseAgentCommand(['Tactio.exe', '--agent-answer', 'ab12', 'by date']), { kind: 'answer', id: 'ab12', text: 'by date' });
     assert.deepEqual(parseAgentCommand(['Tactio.exe', '--agent', 'C:\\fotos']), { kind: 'open', dir: 'C:\\fotos' });
+    assert.deepEqual(parseAgentCommand(['Tactio.exe', '--allow-file-access-from-files', '--agent=C:\\my files']), { kind: 'open', dir: 'C:\\my files' });
+    assert.equal(parseAgentCommand(['Tactio.exe', '--agent', '--allow-file-access-from-files', 'C:\\fotos']), undefined);
     assert.equal(parseAgentCommand(['Tactio.exe']), undefined);
 });
 
@@ -115,11 +117,11 @@ test('tasks left running by a restart are marked failed', () => {
 });
 
 test('the folder menu launches Tactio on the clicked folder', () => {
-    assert.equal(menuCommand('C:\\T\\Tactio.exe', undefined, '%1'), '"C:\\T\\Tactio.exe" --agent "%1"');
-    assert.equal(menuCommand('C:\\e\\electron.exe', 'C:\\src\\tactio', '%V'), '"C:\\e\\electron.exe" "C:\\src\\tactio" --agent "%V"');
+    assert.equal(menuCommand('C:\\T\\Tactio.exe', undefined, '%1'), '"C:\\T\\Tactio.exe" --agent="%1"');
+    assert.equal(menuCommand('C:\\e\\electron.exe', 'C:\\src\\tactio', '%V'), '"C:\\e\\electron.exe" "C:\\src\\tactio" --agent="%V"');
     const calls = addMenuCalls('C:\\T\\Tactio.exe');
     assert.equal(calls.length, 6);
-    assert.ok(calls.some(c => c[1].endsWith('\\Background\\shell\\Tactio\\command') && c[4].endsWith('--agent "%V"')));
+    assert.ok(calls.some(c => c[1].endsWith('\\Background\\shell\\Tactio\\command') && c[4].endsWith('--agent="%V"')));
     assert.deepEqual(removeMenuCalls().map(c => c[0]), ['delete', 'delete']);
 });
 

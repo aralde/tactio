@@ -11,7 +11,8 @@ export const MENU_LABEL = 'Ask the agent to…';
 /** The launch command: the exe alone when packaged, or electron plus the app path in development. */
 export function menuCommand(exe: string, appArg: string | undefined, placeholder: string): string {
     const app = appArg ? ` "${appArg}"` : '';
-    return `"${exe}"${app} --agent "${placeholder}"`;
+    // `--agent="…"` keeps the folder attached to the flag; Chromium moves loose arguments after its own switches.
+    return `"${exe}"${app} --agent="${placeholder}"`;
 }
 
 /** `reg` invocations that add the menu entries. */

@@ -14,7 +14,7 @@ import { AgentTask, AgentTaskManager } from './services/agents/AgentTaskManager'
 import { AgentWindow } from './services/window/AgentWindow';
 import { AgentNotifications } from './services/agents/AgentNotifications';
 import { ClaudeRunner, resolveClaudePath } from './services/agents/ClaudeRunner';
-import { registerAgentIpc } from './services/agents/agentIpc';
+import { isFolder, registerAgentIpc, requireFolder } from './services/agents/agentIpc';
 import { parseAgentCommand } from './services/agents/claudeCli';
 
 
@@ -40,15 +40,17 @@ if (process.defaultApp) {
     app.setAsDefaultProtocolClient('tactio');
 }
 
-const gotTheLock = app.requestSingleInstanceLock();
+// The second instance hands over its own argv: the commandLine Electron passes has Chromium's switches mixed in.
+const gotTheLock = app.requestSingleInstanceLock({ argv: process.argv });
 
 if (!gotTheLock) {
     app.quit();
 } else {
-    app.on('second-instance', (event, commandLine, workingDirectory) => {
+    app.on('second-instance', (event, commandLine, workingDirectory, additionalData) => {
+        const argv: string[] = (additionalData as { argv?: string[] })?.argv || commandLine;
         // Someone tried to run a second instance, we should focus our window.
         // Agent commands open the agent window instead.
-        if (windowManager && !parseAgentCommand(commandLine)) {
+        if (windowManager && !parseAgentCommand(argv)) {
             const win = windowManager.getWindow();
             if (win) {
                 if (win.isMinimized()) win.restore();
@@ -62,7 +64,7 @@ if (!gotTheLock) {
             handleDeepLink(url);
         }
 
-        handleAgentCommand(commandLine);
+        handleAgentCommand(argv);
     });
 
     app.on('open-url', (event, url) => {
@@ -150,8 +152,8 @@ function handleAgentCommand(argv: string[]) {
     const command = parseAgentCommand(argv);
     if (!command || !agentTasks) return;
     try {
-        if (command.kind === 'open') agentWindow.show({ dir: command.dir });
-        else if (command.kind === 'start') agentTasks.start(command.dir, command.intent);
+        if (command.kind === 'open') agentWindow.show(isFolder(command.dir) ? { dir: command.dir } : {});
+        else if (command.kind === 'start') agentTasks.start(requireFolder(command.dir), command.intent);
         else agentTasks.refine(command.id, command.text);
     } catch (e) {
         console.error('[Agent] Command failed:', e);
