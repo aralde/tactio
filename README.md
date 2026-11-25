@@ -100,6 +100,56 @@ Unlock your full potential with these powerful built-in transformations:
 * **⏳ History & Eras**: Track transformations and create versions (eras) of an item by chaining prompts.
 * **One-Click Apply**: Automatically injects the transformed text back into your active application!
 * **No Context Switching**: Trigger, select, and receive—all without leaving your current app.
+* **📁 Folder Agent**: Right-click a folder to ask about its files or have them sorted, renamed or converted. You approve every change and can undo it.
+
+---
+
+## 📁 Folder Agent
+
+Tactio can hand a folder to a command-line agent you already use. The agent looks at the files and proposes changes. Nothing is touched until you approve them.
+
+### Setup
+
+1. **Install and sign in to one agent CLI**:
+   * **Claude Code** (`claude`): run `claude` once in a terminal and use `/login`.
+   * **OpenCode** (`opencode`): run `opencode auth login`.
+   * **Antigravity CLI** (`agy`): run `agy` once and sign in.
+2. **Choose the agent**: in the tray menu under **Agent: …**, or in **Settings** under **Folder agent runs on**. Settings also lets you set the program's path (it is detected automatically otherwise) and, for OpenCode and agy, a model.
+3. **Turn on the folder menu**: in **Settings**, check **Add Tactio to the folder right-click menu**. Explorer then shows **Ask the agent to…** when you right-click a folder or the empty space inside one. You can also open the agent window from the tray with **Ask the agent…**.
+
+### Ask, Plan, Run, Undo
+
+* **Ask**: type a question or a request, e.g. *"Which files are duplicates?"* or *"Turn the invoices into a CSV"*, and press **Ask** (`Ctrl+Enter`).
+* **Questions and answers**: if the agent needs details, it asks a few multiple-choice questions first. You can also let it decide. A question that needs no changes gets an answer in Markdown, which you can copy, save or follow up on.
+* **Plan**: a request that changes files returns a plan with the full list of file changes. Ask for adjustments until it looks right, or cancel the task.
+* **Run**: only after you press **Run** does the agent apply the approved changes.
+* **Undo**: a finished task has an **Undo** button that puts the folder back how it was. Before a file is edited or deleted, its original is copied to `.tactio-trash/<task-id>/` inside the folder, and deletes are moved there instead of being removed.
+
+You can follow running and past tasks from the tray under **Agent tasks**. A notification tells you when a plan, an answer or a question is ready, and when a task is done or fails.
+
+### Weekly repeats
+
+After a task is done or answered, press **Repeat weekly** to run the same request on that folder every 7 days. A repeat starts a normal task that proposes and waits for your approval like any other. Repeats that came due while Tactio was closed start shortly after launch. To stop one, press **Repeats weekly · stop**, or pick it under **Repeating weekly** in the tray.
+
+### Optional conversion tools
+
+Agents have no shell access. For conversions they can't do with their file tools, a plan can ask Tactio to run one of these programs itself, after you approve it. Tactio only offers the ones installed on your `PATH`:
+
+* **`magick`** (ImageMagick): images, e.g. HEIC to JPG.
+* **`qpdf`**: PDFs (merge, split, rotate).
+* **`pandoc`**: documents, e.g. Markdown to DOCX.
+* **`ffmpeg`**: audio and video.
+
+Outputs must stay inside the folder, existing files are never overwritten, and an undo moves the outputs to the trash folder.
+
+### Command line
+
+The folder menu runs Tactio with these flags, and you can use them in your own shortcuts or scripts:
+
+```bash
+Tactio.exe --agent "C:\path\to\folder"                                  # open the agent window on a folder
+Tactio.exe --agent "C:\path\to\folder" --request "Sort photos by year"  # start a task right away
+```
 
 ---
 
