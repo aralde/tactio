@@ -10,8 +10,11 @@ import { AGENT_FILE, LOGIN_FILES, REFRESHED_FILES, SETTINGS_FILE, agyAgent, agyA
 const RUN_TIMEOUT_MS = 30 * 60_000;
 
 export interface Runner {
-    run(cwd: string, step: AgentStep): Promise<AgentResult>;
+    /** `signal` stops the run: its process is killed and the promise rejects. */
+    run(cwd: string, step: AgentStep, signal?: AbortSignal): Promise<AgentResult>;
 }
+
+export const STOPPED = 'Stopped before it finished.';
 
 /**
  * Finds a CLI's binary: the path saved in settings, then `where <name>`, then the usual install
@@ -39,28 +42,36 @@ export function cliProblem(cli: AgentCli, bin: string | undefined): Promise<stri
     });
 }
 
-interface Exit {
+export interface Exit {
     code: number | null;
     signal: NodeJS.Signals | null;
     stdout: string;
     stderr: string;
 }
 
-function runProcess(bin: string, args: string[], cwd: string, env: NodeJS.ProcessEnv, timeoutMs: number): Promise<Exit> {
+export function runProcess(bin: string, args: string[], cwd: string, env: NodeJS.ProcessEnv, timeoutMs: number, signal?: AbortSignal): Promise<Exit> {
     return new Promise((resolve, reject) => {
+        if (signal?.aborted) return reject(new Error(STOPPED));
         const child = spawn(bin, args, { cwd, env, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
         let stdout = '';
         let stderr = '';
         child.stdout.on('data', d => (stdout += d));
         child.stderr.on('data', d => (stderr += d));
         const timer = setTimeout(() => child.kill(), Math.max(timeoutMs, 1));
-        child.on('error', err => {
+        const stop = () => child.kill();
+        signal?.addEventListener('abort', stop, { once: true });
+        const done = () => {
             clearTimeout(timer);
+            signal?.removeEventListener('abort', stop);
+        };
+        child.on('error', err => {
+            done();
             reject(err);
         });
-        child.on('close', (code, signal) => {
-            clearTimeout(timer);
-            resolve({ code, signal, stdout, stderr });
+        child.on('close', (code, killedBy) => {
+            done();
+            if (signal?.aborted) reject(new Error(STOPPED));
+            else resolve({ code, signal: killedBy, stdout, stderr });
         });
     });
 }
@@ -71,14 +82,15 @@ const tooLong = (cli: AgentCli) => new Error(`${CLI_NAMES[cli]} took longer than
 abstract class CliRunner implements Runner {
     constructor(protected cli: AgentCli, private bin: () => string | undefined) {}
 
-    async run(cwd: string, step: AgentStep): Promise<AgentResult> {
+    async run(cwd: string, step: AgentStep, signal?: AbortSignal): Promise<AgentResult> {
         const bin = this.bin();
         const problem = await cliProblem(this.cli, bin);
+        if (signal?.aborted) throw new Error(STOPPED);
         if (problem) throw new Error(problem);
-        return this.runWith(bin!, cwd, step);
+        return this.runWith(bin!, cwd, step, signal);
     }
 
-    protected abstract runWith(bin: string, cwd: string, step: AgentStep): Promise<AgentResult>;
+    protected abstract runWith(bin: string, cwd: string, step: AgentStep, signal?: AbortSignal): Promise<AgentResult>;
 }
 
 export class ClaudeRunner extends CliRunner {
@@ -86,8 +98,8 @@ export class ClaudeRunner extends CliRunner {
         super('claude', bin);
     }
 
-    protected async runWith(bin: string, cwd: string, step: AgentStep): Promise<AgentResult> {
-        const exit = await runProcess(bin, claudeArgs(step), cwd, process.env, RUN_TIMEOUT_MS);
+    protected async runWith(bin: string, cwd: string, step: AgentStep, signal?: AbortSignal): Promise<AgentResult> {
+        const exit = await runProcess(bin, claudeArgs(step), cwd, process.env, RUN_TIMEOUT_MS, signal);
         if (exit.signal) throw tooLong(this.cli);
         const result = parseResult(exit.stdout);
         if (!result) throw new Error(`claude exited ${exit.code} without a result: ${(exit.stderr || exit.stdout).slice(-300)}`);
@@ -105,16 +117,16 @@ export class OpencodeRunner extends CliRunner {
         super('opencode', bin);
     }
 
-    protected async runWith(bin: string, cwd: string, step: AgentStep): Promise<AgentResult> {
+    protected async runWith(bin: string, cwd: string, step: AgentStep, signal?: AbortSignal): Promise<AgentResult> {
         const deadline = Date.now() + RUN_TIMEOUT_MS;
         const env = opencodeEnv(step, cwd);
         const schema = stepSchema(step);
         const model = this.model() || undefined;
-        let exit = await runProcess(bin, opencodeArgs(step, model), cwd, env, RUN_TIMEOUT_MS);
+        let exit = await runProcess(bin, opencodeArgs(step, model), cwd, env, RUN_TIMEOUT_MS, signal);
         let parsed = parseOpencode(exit.stdout);
         if (!exit.signal && exit.code === 0 && !parsed.error && parsed.sessionId && !matchesSchema(extractObject(parsed.text), schema)) {
             const resume = { sessionId: parsed.sessionId, message: schemaReminder(schema) };
-            exit = await runProcess(bin, opencodeArgs(step, model, resume), cwd, env, deadline - Date.now());
+            exit = await runProcess(bin, opencodeArgs(step, model, resume), cwd, env, deadline - Date.now(), signal);
             parsed = { ...parsed, ...parseOpencode(exit.stdout) };
         }
         if (exit.signal) throw tooLong(this.cli);
@@ -129,11 +141,11 @@ export class OpencodeRunner extends CliRunner {
  * The home gets copies of the login files; a token the run refreshes is copied back.
  */
 export class AgyRunner extends CliRunner {
-    constructor(bin: () => string | undefined, private model: () => string | undefined, private realHome = os.homedir()) {
+    constructor(bin: () => string | undefined, private model: () => string | undefined, private realHome = os.homedir(), private start = runProcess) {
         super('agy', bin);
     }
 
-    protected async runWith(bin: string, cwd: string, step: AgentStep): Promise<AgentResult> {
+    protected async runWith(bin: string, cwd: string, step: AgentStep, signal?: AbortSignal): Promise<AgentResult> {
         const home = fs.mkdtempSync(path.join(os.tmpdir(), 'tactio-agy-'));
         const write = (rel: string, content: string) => {
             fs.mkdirSync(path.dirname(path.join(home, rel)), { recursive: true });
@@ -146,12 +158,12 @@ export class AgyRunner extends CliRunner {
             }
             write(SETTINGS_FILE, JSON.stringify(agySettings(step, cwd)));
             write(AGENT_FILE, agyAgent(step));
-            const exit = await runProcess(bin, agyArgs(step, this.model() || undefined), cwd, agyEnv(home), RUN_TIMEOUT_MS);
-            this.copyBackLogin(home);
+            const exit = await this.start(bin, agyArgs(step, this.model() || undefined), cwd, agyEnv(home), RUN_TIMEOUT_MS, signal);
             const result = parseAgy(exit.stdout, exit.stderr);
             if (exit.signal || /stopped before it finished/.test(result.text)) throw tooLong(this.cli);
             return result;
         } finally {
+            this.copyBackLogin(home);
             fs.rmSync(home, { recursive: true, force: true });
         }
     }

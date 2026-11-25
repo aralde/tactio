@@ -54,6 +54,7 @@ const message = (e: unknown) => e instanceof Error ? e.message : String(e);
 
 export class AgentTaskManager {
     private tasks: AgentTask[];
+    private proposing = new Map<string, AbortController>();
 
     constructor(
         private store: TaskStore,
@@ -130,8 +131,11 @@ export class AgentTaskManager {
         return this.start(task.dir, task.request);
     }
 
+    /** Cancels a task waiting on the user, or stops one that is still proposing, which only reads. */
     cancel(id: string) {
-        this.update(this.require(id, ['awaiting_input', 'proposed']), { state: 'cancelled' });
+        const task = this.require(id, ['proposing', 'awaiting_input', 'proposed']);
+        this.proposing.get(id)?.abort();
+        this.update(task, { state: 'cancelled' });
     }
 
     /** Reverts in reverse order: Tactio puts the tools' outputs in the trash, then the agent reverts its own changes. */
@@ -160,8 +164,11 @@ export class AgentTaskManager {
     }
 
     private propose(task: AgentTask, step: AgentStep) {
-        this.execute(task, async () => {
-            const proposal = await this.step(task, step) as Proposal;
+        const stop = new AbortController();
+        this.proposing.set(task.id, stop);
+        const work = async () => {
+            const proposal = await this.step(task, step, stop.signal) as Proposal;
+            if (stop.signal.aborted) return;
             proposal.changes ??= [];
             if (proposal.questions?.length) return this.update(task, { state: 'awaiting_input', proposal });
             if (proposal.answer?.trim() && !proposal.changes.length) return this.update(task, { state: 'answered', proposal });
@@ -172,15 +179,18 @@ export class AgentTaskManager {
             const refused = refusedRun(proposal.changes, this.tools.installed());
             if (refused) return this.update(task, { state: 'failed', proposal, error: `Tactio won't run ${refused.change.tool ?? 'that tool'}: ${refused.reason}` });
             this.update(task, { state: 'proposed', proposal });
-        });
+        };
+        this.execute(task, () => work().finally(() => {
+            if (this.proposing.get(task.id) === stop) this.proposing.delete(task.id);
+        }), stop.signal);
     }
 
     /** Runs one agent step on the task's CLI and returns its structured output. */
-    private async step(task: AgentTask, step: AgentStep): Promise<unknown> {
+    private async step(task: AgentTask, step: AgentStep, signal?: AbortSignal): Promise<unknown> {
         const cli = task.cli ?? 'claude';
         let result;
         try {
-            result = await this.runners(cli).run(task.dir, step);
+            result = await this.runners(cli).run(task.dir, step, signal);
         } catch (e) {
             throw new StepFailed(friendlyError(message(e), cli));
         }
@@ -189,9 +199,12 @@ export class AgentTaskManager {
         return result.output;
     }
 
-    /** Runs work in the background; anything that fails it, including a step that can't start, fails the task. */
-    private execute(task: AgentTask, work: () => Promise<void>) {
-        Promise.resolve().then(work).catch(e => this.update(task, { state: 'failed', error: message(e) }));
+    /** Runs work in the background; anything that fails it, including a step that can't start, fails the task, unless it was stopped. */
+    private execute(task: AgentTask, work: () => Promise<void>, stopped?: AbortSignal) {
+        Promise.resolve().then(work).catch(e => {
+            if (stopped?.aborted) return;
+            this.update(task, { state: 'failed', error: message(e) });
+        });
     }
 
     private require(id: string, states: TaskState[]): AgentTask {

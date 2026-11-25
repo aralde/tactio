@@ -8,6 +8,10 @@ import { extractObject, opencodeArgs, opencodeEnv, opencodeResult, parseOpencode
 import { AGY_AGENT, agyAgent, agyArgs, agySettings, fileRules, otherCommands, parseAgy } from '../src/main/services/agents/agyCli';
 import { AgentTask, AgentTaskManager } from '../src/main/services/agents/AgentTaskManager';
 import { addMenuCalls, menuCommand, removeMenuCalls } from '../src/main/services/agents/folderMenu';
+import { AgyRunner, Exit, STOPPED, runProcess } from '../src/main/services/agents/agentRunners';
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 
 test('propose runs read-only tools with the proposal schema', () => {
     const args = proposeArgs('rename the photos');
@@ -124,6 +128,40 @@ test('a proposal that leaves the folder fails without asking', async () => {
     await tick();
     assert.equal(task.state, 'failed');
     assert.throws(() => manager.approve(task.id));
+});
+
+test('a task still proposing can be stopped, and its late end is ignored', async () => {
+    let stopped: AbortSignal | undefined;
+    let finish: (r: ClaudeResult) => void = () => {};
+    const runner = {
+        run: (_cwd: string, _step: AgentStep, signal?: AbortSignal) => new Promise<ClaudeResult>((resolve, reject) => {
+            stopped = signal;
+            finish = resolve;
+            signal?.addEventListener('abort', () => reject(new Error(STOPPED)));
+        })
+    };
+    const seen: string[] = [];
+    const data: Record<string, any> = {};
+    const manager = new AgentTaskManager({ get: k => data[k], set: (k, v) => (data[k] = v) }, () => runner, { changed: t => seen.push(t.state) });
+    const task = manager.start('/tmp/f', 'delete duplicates');
+    await tick();
+    manager.cancel(task.id);
+    assert.ok(stopped!.aborted);
+    await tick();
+    finish({ sessionId: 's', isError: false, text: '', output: { summary: 'x', plan: [], changes: [] } });
+    await tick();
+    assert.equal(task.state, 'cancelled');
+    assert.deepEqual(seen, ['proposing', 'cancelled']);
+    assert.equal(manager.retry(task.id).state, 'proposing');
+});
+
+test('applying and undoing cannot be stopped', async () => {
+    const change: Change = { op: 'mkdir', path: 'x' };
+    const { manager } = harness([{ sessionId: 's', isError: false, text: '', output: { summary: 'x', plan: ['x'], changes: [change] } }]);
+    const task = manager.start('/tmp/f', 'make x');
+    await tick();
+    manager.approve(task.id);
+    assert.throws(() => manager.cancel(task.id), /is applying/);
 });
 
 test('tasks left running by a restart are marked failed', () => {
@@ -279,4 +317,38 @@ test('agy reads outside the folder are denied one by one, so they never end the 
     const rules = fileRules('C:\\Users\\ariel', dir => tree[dir] ?? []);
     assert.deepEqual(rules.allow, ['read_file(C:/Users/ariel)', 'read_file(C:/Users)', 'read_file(C:/)']);
     assert.deepEqual(rules.deny, ['read_file(C:/Users/Public)', 'read_file(C:/Windows)', 'read_file(C:/prueba)']);
+});
+
+test('stopping a run kills its process within a second', async () => {
+    const stop = new AbortController();
+    const run = runProcess(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], os.tmpdir(), process.env, 60_000, stop.signal);
+    await new Promise(r => setTimeout(r, 300));
+    const started = Date.now();
+    stop.abort();
+    await assert.rejects(run, new RegExp(STOPPED));
+    assert.ok(Date.now() - started < 1000);
+    await assert.rejects(runProcess(process.execPath, ['--version'], os.tmpdir(), process.env, 60_000, stop.signal), new RegExp(STOPPED));
+});
+
+test('a stopped agy run still copies a refreshed login back and removes its home', async () => {
+    const realHome = fs.mkdtempSync(path.join(os.tmpdir(), 'tactio-test-'));
+    const token = '.gemini/oauth_creds.json';
+    fs.mkdirSync(path.join(realHome, '.gemini'), { recursive: true });
+    fs.writeFileSync(path.join(realHome, token), 'old');
+    let home = '';
+    const stop = new AbortController();
+    const fakeAgy = (_bin: string, _args: string[], _cwd: string, env: NodeJS.ProcessEnv, _ms: number, signal?: AbortSignal) => new Promise<Exit>((_resolve, reject) => {
+        home = env.HOME!;
+        fs.writeFileSync(path.join(home, token), 'new');
+        signal!.addEventListener('abort', () => reject(new Error(STOPPED)));
+        stop.abort();
+    });
+    try {
+        const runner = new AgyRunner(() => process.execPath, () => undefined, realHome, fakeAgy);
+        await assert.rejects(runner.run(realHome, proposeStep, stop.signal), new RegExp(STOPPED));
+        assert.equal(fs.readFileSync(path.join(realHome, token), 'utf8'), 'new');
+        assert.ok(home && !fs.existsSync(home));
+    } finally {
+        fs.rmSync(realHome, { recursive: true, force: true });
+    }
 });

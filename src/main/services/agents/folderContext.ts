@@ -177,7 +177,7 @@ export async function prepareContext(dir: string): Promise<() => void> {
 /** A runner that gives every step the folder's context and cleans it up afterwards. */
 export function withFolderContext(runner: Runner): Runner {
     return {
-        async run(cwd: string, step: AgentStep): Promise<AgentResult> {
+        async run(cwd: string, step: AgentStep, signal?: AbortSignal): Promise<AgentResult> {
             let cleanup: () => void = () => {};
             try {
                 cleanup = await prepareContext(cwd);
@@ -185,7 +185,7 @@ export function withFolderContext(runner: Runner): Runner {
                 console.error('[Agent] Could not prepare the folder context:', e);
             }
             try {
-                return await runner.run(cwd, step);
+                return await runner.run(cwd, step, signal);
             } finally {
                 cleanup();
             }
