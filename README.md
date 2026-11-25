@@ -119,7 +119,7 @@ Tactio can hand a folder to a command-line agent you already use. The agent look
 
 ### Ask, Plan, Run, Undo
 
-* **Ask**: type a question or a request, e.g. *"Which files are duplicates?"* or *"Turn the invoices into a CSV"*, and press **Ask** (`Ctrl+Enter`).
+* **Ask**: type a question or a request, e.g. *"Which files are duplicates?"* or *"Turn the invoices into a CSV"*, and press **Ask** (`Ctrl+Enter`). While the agent is still reading the folder, **Stop** ends its run and cancels the task.
 * **Questions and answers**: if the agent needs details, it asks a few multiple-choice questions first. You can also let it decide. A question that needs no changes gets an answer in Markdown, which you can copy, save or follow up on.
 * **Plan**: a request that changes files returns a plan with the full list of file changes. Ask for adjustments until it looks right, or cancel the task.
 * **Run**: only after you press **Run** does the agent apply the approved changes.

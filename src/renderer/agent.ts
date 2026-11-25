@@ -209,8 +209,9 @@ function working(task: AgentTask) {
         bar.style.width = `${w}%`;
         return bar;
     });
+    const stop = task.state === 'proposing' ? [button('Stop', 'ghost', () => window.api.agentCancel(task.id))] : [];
     view(task.request, folderName(task.dir), [...bars, el('p', 'note', `${what} You can close this; a notification will tell you when it's done.`)],
-        [footRow(spacer(), button('Close', 'ghost', hide))]);
+        [footRow(...stop, spacer(), button('Close', 'ghost', hide))]);
 }
 
 function questions(task: AgentTask) {
